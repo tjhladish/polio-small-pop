@@ -1,20 +1,15 @@
-//
-//  main.cpp
-//  learnc
-//
-//  Created by Celeste on 1/31/17.
-//  Copyright © 2017 Celeste. All rights reserved.
-//
-
-//writing a gillespie algorithm
 #include <iostream>
 #include <math.h>
 #include <random>
-#include<tuple>
+#include <tuple>
 #include <array>
 #include <chrono>
 #include <fstream>
+#include <string>
 
+using namespace std;
+
+string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 
 int main(){
     //waning parameters
@@ -210,33 +205,33 @@ int main(){
     std::cout<<"num rec "<<AVG_numRec<<"\n";
     std::cout<<"num wane "<<AVG_numWane<<"\n";
       std::ofstream myfile7;
-    myfile7.open ("/Users/Celeste/Desktop/C++PolioSimResults_paper/N=10000,beta=135,fast_I1vec_time=15_birth=.02_valid.csv");
+    myfile7.open (output_dir + "N_10000,beta_135,fast_I1vec_time_15_birth_.02_valid.csv");
     for(int i=0;i<AVG_I1vec.size();++i){
         myfile7<<AVG_I1vec[i]<<"\n";
     }
     myfile7.close();
     std::ofstream myfile8;
-    myfile8.open ("/Users/Celeste/Desktop/C++PolioSimResults_paper/N=10000,beta=135,fast_Irvec_time=15_birth=.02_valid.csv");
+    myfile8.open (output_dir + "N_10000,beta_135,fast_Irvec_time_15_birth_.02_valid.csv");
     for(int i=0;i<AVG_Irvec.size();++i){
         myfile8<<AVG_Irvec[i]<<"\n";
     }
     myfile8.close();
     
     std::ofstream myfile4;
-    myfile4.open ("/Users/Celeste/Desktop/C++PolioSimResults_paper/N=10000,beta=135,fast_Svec_test_time=15_birth=.02_valid.csv");
+    myfile4.open (output_dir + "N_10000,beta_135,fast_Svec_test_time_15_birth_.02_valid.csv");
     for(int i=0;i<AVG_Svec.size();++i){
         myfile4<<AVG_Svec[i]<<"\n";
     }
     myfile4.close();
     std::ofstream myfile5;
-    myfile5.open ("/Users/Celeste/Desktop/C++PolioSimResults_paper/N=10000,beta=135,fast_Rvec_test_time=15_birth=.02_valid.csv");
+    myfile5.open (output_dir + "N_10000,beta_135,fast_Rvec_test_time_15_birth_.02_valid.csv");
     for(int i=0;i<AVG_Rvec.size();++i){
         myfile5<<AVG_Rvec[i]<<"\n";
     }
     myfile5.close();
     
     std::ofstream myfile6;
-    myfile6.open ("/Users/Celeste/Desktop/C++PolioSimResults_paper/N=10000,beta=135,fast_Pvec_test_time=15_birth=.02_valid.csv");
+    myfile6.open (output_dir + "N_10000,beta_135,fast_Pvec_test_time_15_birth_.02_valid.csv");
     for(int i=0;i<AVG_Pvec.size();++i){
         myfile6<<AVG_Pvec[i]<<"\n";
     }
