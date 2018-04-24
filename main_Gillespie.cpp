@@ -11,10 +11,13 @@ using namespace std;
 
 string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 
-int main(){
+//const vector<double> kappas = {0.1, 0.2, 0.3};
+//const vector<double> rhos   = {10, 20, 30};
+
+int main(int argv, char** argc){
     //waning parameters
-    const double kappa = 1.0;
-    const int rho = 30;
+    const double kappa = 0.4179; //kappas[atoi(argv[1])];
+    const int rho = 0.2; //rhos[atoi(argv[1])];
 
     //other parameters
     const int recovery = 13;//gamma
