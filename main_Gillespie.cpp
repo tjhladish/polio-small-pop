@@ -21,8 +21,8 @@ int main(){
     const int beta =135;
     const double birth = 0.02;
     const double death = 0.02;
-    double PIR =0.005; //type 1 paralysis rate
-    const int alpha = 0;
+    //double PIR =0.005; //type 1 paralysis rate
+    //const int alpha = 0;
     
     //initial population from equilibrium values
     const int Tot = 10000;
@@ -80,11 +80,11 @@ int main(){
         double R1=R;
         double P1=P;
         double Ir1=Ir;
-        double tsc=0;
+        //double tsc=0;
         double time=0;
-        double z=0;
-        int y=1;
-        int k=1;
+        //double z=0;
+        //int y=1;
+        //int k=1;
         int numBirths=0;
         int numDeaths=0;
         int numI1Inf=0;
@@ -206,33 +206,33 @@ int main(){
     std::cout<<"num wane "<<AVG_numWane<<"\n";
       std::ofstream myfile7;
     myfile7.open (output_dir + "N_10000,beta_135,fast_I1vec_time_15_birth_.02_valid.csv");
-    for(int i=0;i<AVG_I1vec.size();++i){
+    for(unsigned int i=0;i<AVG_I1vec.size();++i){
         myfile7<<AVG_I1vec[i]<<"\n";
     }
     myfile7.close();
     std::ofstream myfile8;
     myfile8.open (output_dir + "N_10000,beta_135,fast_Irvec_time_15_birth_.02_valid.csv");
-    for(int i=0;i<AVG_Irvec.size();++i){
+    for(unsigned int i=0;i<AVG_Irvec.size();++i){
         myfile8<<AVG_Irvec[i]<<"\n";
     }
     myfile8.close();
     
     std::ofstream myfile4;
     myfile4.open (output_dir + "N_10000,beta_135,fast_Svec_test_time_15_birth_.02_valid.csv");
-    for(int i=0;i<AVG_Svec.size();++i){
+    for(unsigned int i=0;i<AVG_Svec.size();++i){
         myfile4<<AVG_Svec[i]<<"\n";
     }
     myfile4.close();
     std::ofstream myfile5;
     myfile5.open (output_dir + "N_10000,beta_135,fast_Rvec_test_time_15_birth_.02_valid.csv");
-    for(int i=0;i<AVG_Rvec.size();++i){
+    for(unsigned int i=0;i<AVG_Rvec.size();++i){
         myfile5<<AVG_Rvec[i]<<"\n";
     }
     myfile5.close();
     
     std::ofstream myfile6;
     myfile6.open (output_dir + "N_10000,beta_135,fast_Pvec_test_time_15_birth_.02_valid.csv");
-    for(int i=0;i<AVG_Pvec.size();++i){
+    for(unsigned int i=0;i<AVG_Pvec.size();++i){
         myfile6<<AVG_Pvec[i]<<"\n";
     }
     myfile6.close();
