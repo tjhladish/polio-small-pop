@@ -42,7 +42,7 @@ int main(){
     const int P =5273;
     const int Ir=23;
 
-    //myfile.open(output_dir + "time_between_pcases_N_"+Tot+",beta_"+beta+",detect_rate_"+detRate+"rho_"+rho+".csv");
+    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+".csv");
     //Number of Simulations to run:
     const int numSims=1000;
     
@@ -165,24 +165,24 @@ int main(){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
-                    //myfile << pCaseDetection[i] << " , ";
+                    myfile << pCaseDetection[i] << " , ";
                 }
-                //myfile << "\n";
+                myfile << "\n";
                 break;
             }
         }
 
     }
-    //myfile1.open(output_dir + "num_p_cases_N_"+Tot+",beta_"+beta+",detect_rate_"+detRate+"rho_"+rho+".csv");
+    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+".csv");
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
         myfile1<<totalParalyticCases[i]<<"\n";
     }
-    //myfile1.close();
-    //myfile2.open(output_dir + "TTE_N_"+Tot+",beta_"+beta+",detect_rate_"+detRate+"rho_"+rho+".csv");
+    myfile1.close();
+    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+".csv");
     for (unsigned int i = 0; i < TTE.size(); i++) {
         myfile2<<TTE[i]<<"\n";
     }
-    //myfile2.close();
-    //myfile.close();
+    myfile2.close();
+    myfile.close();
     return 0;
 }
