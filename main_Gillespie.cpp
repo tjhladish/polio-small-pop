@@ -8,6 +8,8 @@
 #include <fstream>
 #include <string>
 #include <gsl/gsl_linalg.h>
+#include <gsl/gsl_multiroots.h>
+#include <gsl/gsl_math.h>
 
 using namespace std;
 
@@ -16,6 +18,44 @@ string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/";
 
 const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
 const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
+
+struct params{
+    int recovery;
+    int beta;
+    double birth;
+    double death;
+    double kappa;
+    double rho;
+    int Tot;
+};
+
+int func_m(const gsl_vector * x, void * p, gsl_vector * f){
+    struct params * params = (struct params *)p;
+    const int recovery = (params->recovery);
+    const int beta = (params->beta);
+    const double birth = (params->birth);
+    const double death = (params->death);
+    const double kappa = (params->kappa);
+    const double rho = (params->rho);
+    const double Tot = (params->Tot);
+    const double S = gsl_vector_get(x,0);
+    const double I1 = gsl_vector_get(x,1);
+    const double R = gsl_vector_get(x,2);
+    const double P = gsl_vector_get(x,3);
+    const double Ir = gsl_vector_get(x,4);
+
+    
+    gsl_vector_set (f,0,birth*Tot - beta*S*(I1+kappa*Ir)/Tot + death*S);
+    gsl_vector_set (f,1,beta*S*(I1+kappa*Ir)/Tot-recovery*I1-death*I1);
+    gsl_vector_set (f,2,recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
+    gsl_vector_set (f,3,rho*R - kappa*beta*P*(I1+kappa*Ir)/Tot - death*P);
+    gsl_vector_set (f,4,S+I1+R+P+Ir-Tot);
+    //gsl_vector_set (f,4,kappa*beta*P*(I1+kappa*Ir)/Tot-(recovery/kappa)*Ir - death*Ir);
+    
+    
+    return GSL_SUCCESS;
+    
+}
 
 int main(){
     ofstream myfile;
@@ -36,6 +76,67 @@ int main(){
 
     //initial population from equilibrium values
     const int Tot = 10000;
+    struct params params = {13, 135,.02,.02,.4179,.2};
+    
+    int i, times, status;
+    gsl_multiroot_function F;
+    gsl_multiroot_fsolver *workspace_F;
+    gsl_vector *x;
+    
+    x = gsl_vector_alloc(5);
+    
+    workspace_F = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids,5);
+    printf("F solver: %s\n", gsl_multiroot_fsolver_name(workspace_F));
+    F.f=&func_m;
+    F.n=5;
+    F.params = &params;
+    int MAXTIMES = 100;
+    /* set initial value */
+    //for(i = 0; i < 5; i++)
+        //gsl_vector_set(x, 0, 579);
+    //gsl_vector_set(x,1,14);
+    //gsl_vector_set(x,2,4110);
+    //gsl_vector_set(x,3,5272);
+    //gsl_vector_set(x,4,23);
+    
+    gsl_vector_set(x,0,Tot-100);
+    gsl_vector_set(x,1,1);
+    gsl_vector_set(x,2,10);
+    gsl_vector_set(x,3,60);
+    gsl_vector_set(x,4,29);
+    
+    
+    /* set solver */
+    gsl_multiroot_fsolver_set(workspace_F, &F, x);
+    
+    /* main loop */
+    for(times = 0; times < MAXTIMES; times++)
+    {
+        status = gsl_multiroot_fsolver_iterate(workspace_F,);
+        
+        printf("%d times: ", times);
+        for(i = 0; i < 5; i++)
+            printf("%10.3e ", gsl_vector_get(workspace_F->x, i));
+        printf("\n");
+        
+        if((status == GSL_EBADFUNC) || (status == GSL_ENOPROG))
+        {
+            printf("Status: %s\n", gsl_strerror(status));
+            break;
+        }
+    }
+    
+    /* print answer */
+    for(i = 0; i < 5; i++)
+        printf("%3d %25.17e\n", i, gsl_vector_get(workspace_F->x, i));
+    
+    gsl_multiroot_fsolver_free(workspace_F);
+    
+
+    /* free x */
+    gsl_vector_free(x);
+    
+    
     const int S =579;
     const int I1=14;
     const int R =4111;
@@ -44,7 +145,7 @@ int main(){
 
     myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+".csv");
     //Number of Simulations to run:
-    const int numSims=1000;
+    const int numSims=1;
     
     //time to extinction vector
     vector<double> TTE;
@@ -115,8 +216,8 @@ int main(){
                     countPIR++;
                     if(countPIR > 1){
                         pCaseDetection.push_back(time-tsc);
-                        tsc=time;
                     }
+                    tsc=time;
                 }
             }
             else if(ran<((infectr+infect1)/totalRate)){
