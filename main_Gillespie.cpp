@@ -7,7 +7,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
-#include <gsl/gsl_linalg.h>
+//#include <gsl/gsl_linalg.h>
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_math.h>
 
@@ -76,7 +76,7 @@ int main(){
 
     //initial population from equilibrium values
     const int Tot = 10000;
-    struct params params = {13, 135,.02,.02,.4179,.2};
+    struct params params = {13, 135,.02,.02,.4179,.2,10000};
     
     int i, times, status;
     gsl_multiroot_function F;
@@ -112,7 +112,7 @@ int main(){
     /* main loop */
     for(times = 0; times < MAXTIMES; times++)
     {
-        status = gsl_multiroot_fsolver_iterate(workspace_F,);
+        status = gsl_multiroot_fsolver_iterate(workspace_F);
         
         printf("%d times: ", times);
         for(i = 0; i < 5; i++)
