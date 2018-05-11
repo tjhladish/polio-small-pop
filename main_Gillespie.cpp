@@ -10,29 +10,30 @@
 //#include <gsl/gsl_linalg.h>
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_math.h>
+#include <assert.h>
 
 using namespace std;
 
 //string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
-string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/";
+string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
 
 const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
 const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
 
 struct params{
-    int recovery;
-    int beta;
+    double recovery;
+    double beta;
     double birth;
     double death;
     double kappa;
     double rho;
-    int Tot;
+    double Tot;
 };
 
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     struct params * params = (struct params *)p;
-    const int recovery = (params->recovery);
-    const int beta = (params->beta);
+    const double recovery = (params->recovery);
+    const double beta = (params->beta);
     const double birth = (params->birth);
     const double death = (params->death);
     const double kappa = (params->kappa);
@@ -45,11 +46,11 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double Ir = gsl_vector_get(x,4);
 
     
-    gsl_vector_set (f,0,birth*Tot - beta*S*(I1+kappa*Ir)/Tot + death*S);
-    gsl_vector_set (f,1,beta*S*(I1+kappa*Ir)/Tot-recovery*I1-death*I1);
+    gsl_vector_set (f,0,birth*Tot - (beta*S*(I1+kappa*Ir))/Tot - death*S);
+    gsl_vector_set (f,1,(beta*S*(I1+kappa*Ir))/Tot-recovery*I1-death*I1);
     gsl_vector_set (f,2,recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
-    gsl_vector_set (f,3,rho*R - kappa*beta*P*(I1+kappa*Ir)/Tot - death*P);
-    gsl_vector_set (f,4,S+I1+R+P+Ir-Tot);
+    gsl_vector_set (f,3,rho*R - (kappa*beta*P*(I1+kappa*Ir))/Tot - death*P);
+    gsl_vector_set (f,4,Tot - (S+I1+R+P+Ir));
     //gsl_vector_set (f,4,kappa*beta*P*(I1+kappa*Ir)/Tot-(recovery/kappa)*Ir - death*Ir);
     
     
@@ -66,8 +67,8 @@ int main(){
     const double rho = 0.2; //rhos[atoi(argv[1])];
 
     //other parameters
-    const int recovery = 13;//gamma
-    const int beta = 135;
+    const double recovery = 13;//gamma
+    const double beta = 135;
     const double birth = 0.02;
     const double death = 0.02;
     double PIR =0.005; //type 1 paralysis rate
@@ -75,35 +76,40 @@ int main(){
     //const int alpha = 0;
 
     //initial population from equilibrium values
-    const int Tot = 10000;
-    struct params params = {13, 135,.02,.02,.4179,.2,10000};
+    const double Tot = 3500;
+    struct params params = {recovery, beta,birth,death,kappa,rho,Tot};
     
     int i, times, status;
     gsl_multiroot_function F;
     gsl_multiroot_fsolver *workspace_F;
     gsl_vector *x;
+    int num_dimensions = 5;
     
-    x = gsl_vector_alloc(5);
+    x = gsl_vector_alloc(num_dimensions);
     
-    workspace_F = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids,5);
+    workspace_F = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids,num_dimensions);
     printf("F solver: %s\n", gsl_multiroot_fsolver_name(workspace_F));
     F.f=&func_m;
-    F.n=5;
+    F.n=num_dimensions;
     F.params = &params;
     int MAXTIMES = 100;
     /* set initial value */
-    //for(i = 0; i < 5; i++)
-        //gsl_vector_set(x, 0, 579);
-    //gsl_vector_set(x,1,14);
-    //gsl_vector_set(x,2,4110);
-    //gsl_vector_set(x,3,5272);
-    //gsl_vector_set(x,4,23);
+    for(i = 0; i < num_dimensions; i++){
+        gsl_vector_set(x,i,100);
+    }
+    //note: set all vectors to 1 for all sims N=10,000 except for slow waning -> set to 100
     
-    gsl_vector_set(x,0,Tot-100);
-    gsl_vector_set(x,1,1);
-    gsl_vector_set(x,2,10);
-    gsl_vector_set(x,3,60);
-    gsl_vector_set(x,4,29);
+    /*gsl_vector_set(x, 0, 579);
+    gsl_vector_set(x,1,14);
+    gsl_vector_set(x,2,4110);
+    gsl_vector_set(x,3,5272);
+    gsl_vector_set(x,4,23);*/
+    
+    /*gsl_vector_set(x,0,100);
+    gsl_vector_set(x,1,100);
+    gsl_vector_set(x,2,100);
+    gsl_vector_set(x,3,100);
+    gsl_vector_set(x,4,100);*/
     
     
     /* set solver */
@@ -114,21 +120,31 @@ int main(){
     {
         status = gsl_multiroot_fsolver_iterate(workspace_F);
         
-        printf("%d times: ", times);
-        for(i = 0; i < 5; i++)
-            printf("%10.3e ", gsl_vector_get(workspace_F->x, i));
-        printf("\n");
-        
+        /*fprintf(stderr, "%d times: ", times);
+        for(i = 0; i < num_dimensions; i++) {
+            fprintf(stderr, "%10.3e ", gsl_vector_get(workspace_F->x, i));
+        }
+        fprintf(stderr, "\n");
+        */
         if((status == GSL_EBADFUNC) || (status == GSL_ENOPROG))
         {
-            printf("Status: %s\n", gsl_strerror(status));
+            fprintf(stderr, "Status: %s\n", gsl_strerror(status));
             break;
         }
     }
     
+    assert(status == GSL_ENOPROG);
     /* print answer */
-    for(i = 0; i < 5; i++)
-        printf("%3d %25.17e\n", i, gsl_vector_get(workspace_F->x, i));
+    for(i = 0; i < num_dimensions; i++) {
+        fprintf(stderr, "%3d %25.17e\n", i, gsl_vector_get(workspace_F->x, i));
+    }
+    
+    assert(num_dimensions==5);
+    const int S = gsl_vector_get(workspace_F->x, 0);
+    const int I1= gsl_vector_get(workspace_F->x, 1);
+    const int R = gsl_vector_get(workspace_F->x, 2);
+    const int P = gsl_vector_get(workspace_F->x, 3);
+    const int Ir= gsl_vector_get(workspace_F->x, 4);
     
     gsl_multiroot_fsolver_free(workspace_F);
     
@@ -137,15 +153,10 @@ int main(){
     gsl_vector_free(x);
     
     
-    const int S =579;
-    const int I1=14;
-    const int R =4111;
-    const int P =5273;
-    const int Ir=23;
 
     myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+".csv");
     //Number of Simulations to run:
-    const int numSims=1;
+    const int numSims=1000;
     
     //time to extinction vector
     vector<double> TTE;
@@ -218,6 +229,7 @@ int main(){
                         pCaseDetection.push_back(time-tsc);
                     }
                     tsc=time;
+                    
                 }
             }
             else if(ran<((infectr+infect1)/totalRate)){
