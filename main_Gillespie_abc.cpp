@@ -68,15 +68,15 @@ int main(){
 
     //other parameters
     const double recovery = 13;//gamma
-    const double beta = 260;
+    const double beta = 135;
     const double birth = 0.02;
     const double death = 0.02;
     double PIR =0.005; //type 1 paralysis rate
-    double detRate = 0.5;
+    double detRate = 1;
     //const int alpha = 0;
 
     //initial population from equilibrium values
-    const double Tot = 10000;
+    const double Tot = 7000;
     struct params params = {recovery, beta,birth,death,kappa,rho,Tot};
     
     int i, times, status;
@@ -154,7 +154,7 @@ int main(){
     
     
 
-    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_SE.csv");
     //Number of Simulations to run:
     const int numSims=1000*100;
     
@@ -227,9 +227,9 @@ int main(){
                     countPIR++;
                     if(countPIR > 1){
                         pCaseDetection.push_back(time-tsc);
-                        //tsc=time;
+                        tsc=time;
                     }
-                    tsc=time;
+                    //tsc=time;
                     
                 }
             }
@@ -287,12 +287,12 @@ int main(){
         }
 
     }
-    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_SE.csv");
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
         myfile1<<totalParalyticCases[i]<<"\n";
     }
     myfile1.close();
-    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_SE.csv");
     for (unsigned int i = 0; i < TTE.size(); i++) {
         myfile2<<TTE[i]<<"\n";
     }
