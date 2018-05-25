@@ -11,11 +11,13 @@
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_math.h>
 #include <assert.h>
+#include <sstream>
 
 using namespace std;
 
 //string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
+string ext = "_corrected_dist_1.csv";
 
 const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
 const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
@@ -62,17 +64,25 @@ int main(){
     ofstream myfile;
     ofstream myfile1;
     ofstream myfile2;
+    ofstream myfile3;
+    ofstream myfile4;
+    ofstream myfile5;
+    ofstream myfile6;
+    ofstream myfile7;
+    ofstream myfile8;
+    ofstream myfile9;
+    ofstream myfile10;
     //waning parameters
     const double kappa = 0.4179; //kappas[atoi(argv[1])];
     const double rho = 0.2; //rhos[atoi(argv[1])];
 
     //other parameters
     const double recovery = 13;//gamma
-    const double beta = 260;
+    const double beta = 135;
     const double birth = 0.02;
     const double death = 0.02;
     double PIR =0.005; //type 1 paralysis rate
-    double detRate = 0.5;
+    double detRate = 1.0;
     //const int alpha = 0;
 
     //initial population from equilibrium values
@@ -154,9 +164,17 @@ int main(){
     
     
 
-    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile3.open(output_dir + "S_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile4.open(output_dir + "I1_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile5.open(output_dir + "R_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile6.open(output_dir + "P_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile7.open(output_dir + "Ir_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile8.open(output_dir + "infect_rate_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile9.open(output_dir + "time_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
+    myfile10.open(output_dir + "pCases_per_year_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
     //Number of Simulations to run:
-    const int numSims=1000*100;
+    const int numSims=1000;
     
     //time to extinction vector
     vector<double> TTE;
@@ -166,6 +184,12 @@ int main(){
     
     //vector for num paralytic cases
     vector<double> totalParalyticCases;
+    
+    //vector for paralytic cases per year
+    vector<double> pCasesPerYear;
+    
+    //vector for counting number of cases per year
+    vector<double> histogramCases(50,0);
 
     //generate a random real number
     random_device rd;//this is the seed
@@ -186,6 +210,7 @@ int main(){
         double time=0;
         int countPIR = 0;
         pCaseDetection.clear();
+        pCasesPerYear.clear();
         
 
 
@@ -229,6 +254,11 @@ int main(){
                         pCaseDetection.push_back(time-tsc);
                         //tsc=time;
                     }
+                    const int year = (int) time;
+                    if(year >= pCasesPerYear.size()){
+                        pCasesPerYear.resize(year + 1, 0);
+                    }
+                    pCasesPerYear[year]++;
                     tsc=time;
                     
                 }
@@ -273,30 +303,85 @@ int main(){
 
             double t1 = rng(gen);
             time+=t1;
+//bool _already_output = false;
+//            current_time_interval = (int) time/time_step;
+//           if(if current_time_interval > last_time_interval and fmod(time,.004) < .01){
+                myfile3 << S1      << ", ";
+                myfile4 << I11     << ", ";
+                myfile5 << R1      << ", ";
+                myfile6 << P1      << ", ";
+                myfile7 << Ir1     << ", ";
+                myfile8 << infect1 << ", ";
+                myfile9 << time    << ", ";
+//            }
+//            last_time_interval = current_time_interval;
 
             //stopping condition
             if((I11+Ir1==0) or time>15){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
+                const double fractional_year = time - (int) time;
+                if (fractional_year > 0) {
+                    pCasesPerYear.resize((int) time + 1, 0);
+                }
+                for (auto count: pCasesPerYear) histogramCases[count]++;
+                if (time != (int) time) {
+                    const int last_years_count = pCasesPerYear.back();
+                    if (last_years_count != 0) {
+                        histogramCases[last_years_count] -= 1.0 - fractional_year;
+                    } else {
+                        histogramCases[0] += fractional_year;
+                    }
+                }
+                /*if(pCasesPerYear.size() == 1){
+                    pCasesPerYear[0] = time;
+                }*/
+                //cout<<"pcases size "<<pCasesPerYear.size()<<endl;
+                cout << "end time: " << time << "\npcases time series: ";
+                for(int i = 0; i < pCasesPerYear.size() - 1; i++){
+                    cout<<pCasesPerYear[i]<<",";
+                }
+                if (pCasesPerYear.size()>0) cout<<pCasesPerYear.back() << endl;
+                cout << "pcase tally: ";
+                
+                if (i == numSims-1) {
+                    for (double ptally: histogramCases) myfile10 << ptally << ","; myfile10 << endl;
+                }
+                
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
                     myfile << pCaseDetection[i] << " , ";
                 }
                 myfile << "\n";
+                myfile3 << S1 <<",\n";
+                myfile4 << I11 << ", \n ";
+                myfile5 << R1 << ", \n ";
+                myfile6 << P1 << ", \n ";
+                myfile7 << Ir1 << ", \n ";
+                myfile8 << infect1 <<", \n";
+                myfile9 << time << ", \n";
                 break;
             }
         }
 
     }
-    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
         myfile1<<totalParalyticCases[i]<<"\n";
     }
     myfile1.close();
-    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+"_corrected_SE.csv");
+    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
     for (unsigned int i = 0; i < TTE.size(); i++) {
         myfile2<<TTE[i]<<"\n";
     }
     myfile2.close();
     myfile.close();
+    myfile3.close();
+    myfile4.close();
+    myfile5.close();
+    myfile6.close();
+    myfile7.close();
+    myfile8.close();
+    myfile9.close();
+    myfile10.close();
     return 0;
 }
