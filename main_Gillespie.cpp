@@ -12,6 +12,7 @@
 #include <gsl/gsl_math.h>
 #include <assert.h>
 #include <sstream>
+#include <map>
 
 using namespace std;
 
@@ -19,10 +20,50 @@ using namespace std;
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
 string ext = "_corrected_dist_1.csv";
 
+uniform_real_distribution<> unifdis(0.0, 1.0);
+
+//waning parameters
+const double KAPPA = 0.4179; //kappas[atoi(argv[1])];
+const double RHO = 0.2; //rhos[atoi(argv[1])];
+
+//other parameters
+const double TOT = 10000;
+const double RECOVERY = 13;//gamma
+const double BETA = 135;
+const double BIRTH = 0.02;
+const double DEATH = 0.02;
+const double PIR =0.005; //type 1 paralysis rate
+const double DET_RATE = 1.0;
+
+enum EventType {FIRST_INFECTION_EVENT,
+                REINFECTION_EVENT,
+                RECOVERY_FROM_FIRST_INFECTION_EVENT,
+                RECOVERY_FROM_REINFECTION_EVENT,
+                WANING_EVENT,
+                BIRTH_EVENT,
+                DEATH_FROM_RECOVERED_EVENT,
+                DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT,
+                DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT,
+                DEATH_FROM_REINFECTION_EVENT,
+                DEATH_FROM_FIRST_INFECTION_EVENT,
+                NUM_OF_EVENT_TYPES};
+
+enum OutputType {PCASE_INTERVAL_OUT,
+                 PCASE_INCIDENCE_OUT,
+                 EXTINCTION_TIME_OUT,
+                 S_OUT,
+                 I1_OUT,
+                 R_OUT,
+                 P_OUT,
+                 IR_OUT,
+                 TIME_OUT,
+                 PCASE_TALLY_OUT,
+                 NUM_OF_OUTPUT_TYPES };
+
 const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
 const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
 
-struct params{
+struct Params{
     double recovery;
     double beta;
     double birth;
@@ -33,7 +74,7 @@ struct params{
 };
 
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
-    struct params * params = (struct params *)p;
+    Params * params = (Params *)p;
     const double recovery = (params->recovery);
     const double beta = (params->beta);
     const double birth = (params->birth);
@@ -60,34 +101,61 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     
 }
 
-int main(){
-    ofstream myfile;
-    ofstream myfile1;
-    ofstream myfile2;
-    ofstream myfile3;
-    ofstream myfile4;
-    ofstream myfile5;
-    ofstream myfile6;
-    ofstream myfile7;
-    ofstream myfile8;
-    ofstream myfile9;
-    ofstream myfile10;
-    //waning parameters
-    const double kappa = 0.4179; //kappas[atoi(argv[1])];
-    const double rho = 0.2; //rhos[atoi(argv[1])];
+EventType sample_event(mt19937& gen, double& totalRate, const double S1, const double I11, const double R1, const double P1, const double Ir1) {
+    //generate unifrn
+    double ran=unifdis(gen);
 
-    //other parameters
-    const double recovery = 13;//gamma
-    const double beta = 135;
-    const double birth = 0.02;
-    const double death = 0.02;
-    double PIR =0.005; //type 1 paralysis rate
-    double detRate = 1.0;
-    //const int alpha = 0;
+    //update the transition rates
+    double birthRate;
+    if((S1+I11+R1+P1+Ir1<TOT)){
+        birthRate = BIRTH*(S1+I11+R1+P1+Ir1);
+    }
+    else{
+        birthRate = 0;
+    }
+    const double infect1 = BETA*S1/TOT*(I11+ KAPPA*Ir1);
+    const double recover1 = RECOVERY*I11;
+    const double wane = RHO*R1;
+    const double infectr = KAPPA*BETA*P1/TOT*(I11+ KAPPA*Ir1);
+    const double recover2 = (RECOVERY/KAPPA)*Ir1;
+    const double deathS = DEATH*S1;
+    const double deathI1 = DEATH*I11;
+    const double deathR = DEATH*R1;
+    const double deathP = DEATH*P1;
+    const double deathIr = DEATH*Ir1;
 
+    totalRate = birthRate+infect1+recover1+wane+infectr+recover2+deathS+deathI1+deathR+deathP+deathIr;
+
+    EventType event_type;
+    if(ran< infect1/totalRate){
+        event_type = FIRST_INFECTION_EVENT;
+    } else if(ran<((infectr+infect1)/totalRate)){
+        event_type = REINFECTION_EVENT;
+    } else if(ran<((recover1+infectr+infect1)/totalRate)){
+        event_type = RECOVERY_FROM_FIRST_INFECTION_EVENT;
+    } else if(ran<((recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = RECOVERY_FROM_REINFECTION_EVENT;
+    } else if(ran<((wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = WANING_EVENT;
+    } else if(ran<((birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = BIRTH_EVENT;
+    } else if(ran<((deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = DEATH_FROM_RECOVERED_EVENT;
+    } else if(ran<((deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT;
+    } else if(ran<((deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT;
+    } else if(ran<((deathIr+deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
+        event_type = DEATH_FROM_REINFECTION_EVENT;
+    } else{
+        event_type = DEATH_FROM_FIRST_INFECTION_EVENT;
+    }
+    return event_type;
+}
+
+map<string,double> initialize_compartments() {
     //initial population from equilibrium values
-    const double Tot = 10000;
-    struct params params = {recovery, beta,birth,death,kappa,rho,Tot};
+    Params params = {RECOVERY, BETA, BIRTH, DEATH, KAPPA, RHO, TOT};
     
     int i, times, status;
     gsl_multiroot_function F;
@@ -107,27 +175,12 @@ int main(){
     for(i = 0; i < num_dimensions; i++){
         gsl_vector_set(x,i,100);
     }
-    //note: set all vectors to 1 for all sims N=10,000 except for slow waning -> set to 100
-    
-    /*gsl_vector_set(x, 0, 579);
-    gsl_vector_set(x,1,14);
-    gsl_vector_set(x,2,4110);
-    gsl_vector_set(x,3,5272);
-    gsl_vector_set(x,4,23);*/
-    
-    /*gsl_vector_set(x,0,100);
-    gsl_vector_set(x,1,100);
-    gsl_vector_set(x,2,100);
-    gsl_vector_set(x,3,100);
-    gsl_vector_set(x,4,100);*/
-    
     
     /* set solver */
     gsl_multiroot_fsolver_set(workspace_F, &F, x);
     
     /* main loop */
-    for(times = 0; times < MAXTIMES; times++)
-    {
+    for(times = 0; times < MAXTIMES; times++) {
         status = gsl_multiroot_fsolver_iterate(workspace_F);
         
         /*fprintf(stderr, "%d times: ", times);
@@ -150,53 +203,67 @@ int main(){
     }
     
     assert(num_dimensions==5);
-    const int S = gsl_vector_get(workspace_F->x, 0);
-    const int I1= gsl_vector_get(workspace_F->x, 1);
-    const int R = gsl_vector_get(workspace_F->x, 2);
-    const int P = gsl_vector_get(workspace_F->x, 3);
-    const int Ir= gsl_vector_get(workspace_F->x, 4);
-    
+    map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
+                                        {"I1", gsl_vector_get(workspace_F->x, 1)},
+                                        {"R",  gsl_vector_get(workspace_F->x, 2)},
+                                        {"P",  gsl_vector_get(workspace_F->x, 3)},
+                                        {"Ir", gsl_vector_get(workspace_F->x, 4)}};
+   
     gsl_multiroot_fsolver_free(workspace_F);
     
-
     /* free x */
     gsl_vector_free(x);
-    
-    
+   
+    return compartments;
+}
 
-    myfile.open(output_dir + "time_between_pcases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile3.open(output_dir + "S_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile4.open(output_dir + "I1_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile5.open(output_dir + "R_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile6.open(output_dir + "P_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile7.open(output_dir + "Ir_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile8.open(output_dir + "infect_rate_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile9.open(output_dir + "time_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    myfile10.open(output_dir + "pCases_per_year_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
-    //Number of Simulations to run:
-    const int numSims=1000;
-    
-    //time to extinction vector
-    vector<double> TTE;
-    
-    //time between paralytic cases vector
-    vector<double> pCaseDetection;
-    
-    //vector for num paralytic cases
-    vector<double> totalParalyticCases;
-    
-    //vector for paralytic cases per year
-    vector<double> pCasesPerYear;
-    
-    //vector for counting number of cases per year
-    vector<double> histogramCases(50,0);
+void output_results(vector<stringstream> &output_streams) {
 
-    //generate a random real number
-    random_device rd;//this is the seed
-    //int rd =0;
-    //mt19937 gen(1);
-    mt19937 gen(rd());//this generates the rn with the above seed
-    uniform_real_distribution<> unifdis(0.0, 1.0);
+    string base_filename = to_string(TOT)+",beta_"+to_string(BETA)+",detect_rate_"+to_string(DET_RATE)+"rho_"+to_string(RHO)+ ext;
+    map<OutputType,string> output_filenames = { {PCASE_INTERVAL_OUT,  output_dir + "time_between_pcases_N_"+ base_filename},
+                                                {PCASE_INCIDENCE_OUT, output_dir + "num_p_cases_N_"+ base_filename        },
+                                                {EXTINCTION_TIME_OUT, output_dir + "TTE_N_"+ base_filename                },
+                                                {S_OUT,               output_dir + "S_"+ base_filename                    },
+                                                {I1_OUT,              output_dir + "I1_"+ base_filename                   },
+                                                {R_OUT,               output_dir + "R_"+ base_filename                    },
+                                                {P_OUT,               output_dir + "P_"+ base_filename                    },
+                                                {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
+                                                {TIME_OUT,            output_dir + "time_"+ base_filename                 },
+                                                {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
+
+
+    for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
+        const OutputType ot = (OutputType) ot_idx;
+        ofstream ofs;
+        ofs.open(output_filenames[ot]);
+        ofs << output_streams[ot].rdbuf();
+        ofs.close();
+    }
+}
+
+int main(){
+    vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
+
+    const int numSims=100;                  // Number of Simulations to run:
+    vector<double> TTE;                     // time to extinction vector
+    vector<double> pCaseDetection;          // time between paralytic cases vector
+    vector<double> totalParalyticCases;     // vector for num paralytic cases
+    vector<double> pCasesPerYear;           // vector for paralytic cases per year
+    vector<double> histogramCases(50,0);    // vector for counting number of cases per year
+
+    //int seed = 0;
+    //mt19937 gen(seed);
+
+    random_device rd;                       // generates a random real number for the seed
+    mt19937 gen(rd());                      // random number generator
+
+    const map<string, double> compartments = initialize_compartments();
+    
+    const int S  = compartments.at("S");
+    const int I1 = compartments.at("I1");
+    const int R  = compartments.at("R");
+    const int P  = compartments.at("P");
+    const int Ir = compartments.at("Ir");
 
     //The Simulation
     for(int i=0;i<numSims;++i){
@@ -212,109 +279,56 @@ int main(){
         pCaseDetection.clear();
         pCasesPerYear.clear();
         
-
-
         //run the simulation for 1 mill steps
         for(int j=0;j<1000001;++j){
-
-            //update the transition rates
-            double birthRate;
-            if((S1+I11+R1+P1+Ir1<Tot)){
-                birthRate = birth*(S1+I11+R1+P1+Ir1);
-            }
-            else{
-                birthRate = 0;
-            }
-            double infect1 = beta*S1/Tot*(I11+ kappa*Ir1);
-            double recover1 = recovery*I11;
-            double wane = rho*R1;
-            double infectr = kappa*beta*P1/Tot*(I11+ kappa*Ir1);
-            double recover2 = (recovery/kappa)*Ir1;
-            double deathS = death*S1;
-            double deathI1 = death*I11;
-            double deathR = death*R1;
-            double deathP = death*P1;
-            double deathIr = death*Ir1;
-
-            double totalRate = birthRate+infect1+recover1+wane+infectr+recover2+deathS+deathI1+deathR+deathP+deathIr;
-
-
-            //generate unifrn
-            double ran=unifdis(gen);
-
+            double totalRate = 0;
+            EventType event_type = sample_event(gen, totalRate, S1, I11, R1, P1, Ir1);
             //Pick the event that is to occur based on generated number and rate
-            if(ran< infect1/totalRate){
-                S1=S1-1;
-                I11=I11+1;
-                //generate a unif random real num to determine if a paralytic case is detected
-                double rr = unifdis(gen);
-                if(rr<(PIR*detRate)){
-                    countPIR++;
-                    if(countPIR > 1){
-                        pCaseDetection.push_back(time-tsc);
-                        //tsc=time;
+            switch (event_type) {
+                case FIRST_INFECTION_EVENT: --S1; ++I11;
+                    //generate a unif random real num to determine if a paralytic case is detected
+                    {
+                        double rr = unifdis(gen);
+                        if(rr<(PIR*DET_RATE)){
+                            countPIR++;
+                            if(countPIR > 1){
+                                pCaseDetection.push_back(time-tsc);
+                                //tsc=time;
+                            }
+                            const int year = (int) time;
+                            if((unsigned) year >= pCasesPerYear.size()){
+                                pCasesPerYear.resize(year + 1, 0);
+                            }
+                            pCasesPerYear[year]++;
+                            tsc=time;
+                        }
                     }
-                    const int year = (int) time;
-                    if(year >= pCasesPerYear.size()){
-                        pCasesPerYear.resize(year + 1, 0);
-                    }
-                    pCasesPerYear[year]++;
-                    tsc=time;
-                    
-                }
-            }
-            else if(ran<((infectr+infect1)/totalRate)){
-                P1=P1-1;
-                Ir1=Ir1+1;
-            }
-            else if(ran<((recover1+infectr+infect1)/totalRate)){
-                I11=I11-1;
-                R1=R1+1;
-            }
-            else if(ran<((recover2+recover1+infectr+infect1)/totalRate)){
-                Ir1=Ir1-1;
-                R1=R1+1;
-            }
-            else if(ran<((wane+recover2+recover1+infectr+infect1)/totalRate)){
-                R1=R1-1;
-                P1=P1+1;
-            }
-            else if(ran<((birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-                S1=S1+1;
-            }
-            else if(ran<((deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-                R1=R1-1;
-            }
-            else if(ran<((deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-                P1=P1-1;
-            }
-            else if(ran<((deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-                S1=S1-1;
-            }
-            else if(ran<((deathIr+deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-                Ir1=Ir1-1;
-            }
-            else{
-                I11=I11-1;
+                    break;
+                case REINFECTION_EVENT:                    --P1; ++Ir1; break;
+                case RECOVERY_FROM_FIRST_INFECTION_EVENT:  --I11; ++R1; break;
+                case RECOVERY_FROM_REINFECTION_EVENT:      --Ir1; ++R1; break;
+                case WANING_EVENT:                         --R1;  ++P1; break;
+                case BIRTH_EVENT:                          ++S1;        break;
+                case DEATH_FROM_RECOVERED_EVENT:           --R1;        break;
+                case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT: --P1;        break;
+                case DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT:   --S1;        break;
+                case DEATH_FROM_REINFECTION_EVENT:         --Ir1;       break;
+                case DEATH_FROM_FIRST_INFECTION_EVENT:     --I11;       break;
+                default:
+                    cerr << "ERROR: Unsupported event type" << endl;
+                    break;
             }
 
-            //once the event is chosen, generate the time at which the event occurs
-            exponential_distribution<>rng((totalRate));
+            //generate the time at which the event occurs
+            exponential_distribution<>rng(totalRate);
+            time+=rng(gen);
 
-            double t1 = rng(gen);
-            time+=t1;
-//bool _already_output = false;
-//            current_time_interval = (int) time/time_step;
-//           if(if current_time_interval > last_time_interval and fmod(time,.004) < .01){
-                myfile3 << S1      << ", ";
-                myfile4 << I11     << ", ";
-                myfile5 << R1      << ", ";
-                myfile6 << P1      << ", ";
-                myfile7 << Ir1     << ", ";
-                myfile8 << infect1 << ", ";
-                myfile9 << time    << ", ";
-//            }
-//            last_time_interval = current_time_interval;
+            output_streams[S_OUT] << S1      << ", ";
+            output_streams[I1_OUT] << I11     << ", ";
+            output_streams[R_OUT] << R1      << ", ";
+            output_streams[P_OUT] << P1      << ", ";
+            output_streams[IR_OUT] << Ir1     << ", ";
+            output_streams[TIME_OUT] << time    << ", ";
 
             //stopping condition
             if((I11+Ir1==0) or time>15){
@@ -337,51 +351,41 @@ int main(){
                     pCasesPerYear[0] = time;
                 }*/
                 //cout<<"pcases size "<<pCasesPerYear.size()<<endl;
-                cout << "end time: " << time << "\npcases time series: ";
-                for(int i = 0; i < pCasesPerYear.size() - 1; i++){
+
+                /*cout << "end time: " << time << "\npcases time series: ";
+                for(unsigned int i = 0; i < pCasesPerYear.size() - 1; i++){
                     cout<<pCasesPerYear[i]<<",";
                 }
                 if (pCasesPerYear.size()>0) cout<<pCasesPerYear.back() << endl;
                 cout << "pcase tally: ";
-                
+                */
                 if (i == numSims-1) {
-                    for (double ptally: histogramCases) myfile10 << ptally << ","; myfile10 << endl;
+                    for (double ptally: histogramCases) output_streams[PCASE_TALLY_OUT] << ptally << ","; output_streams[PCASE_TALLY_OUT] << endl;
                 }
                 
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
-                    myfile << pCaseDetection[i] << " , ";
+                    output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
                 }
-                myfile << "\n";
-                myfile3 << S1 <<",\n";
-                myfile4 << I11 << ", \n ";
-                myfile5 << R1 << ", \n ";
-                myfile6 << P1 << ", \n ";
-                myfile7 << Ir1 << ", \n ";
-                myfile8 << infect1 <<", \n";
-                myfile9 << time << ", \n";
+                output_streams[PCASE_INTERVAL_OUT] << "\n";
+                output_streams[S_OUT] << S1 <<",\n";
+                output_streams[I1_OUT] << I11 << ", \n ";
+                output_streams[R_OUT] << R1 << ", \n ";
+                output_streams[P_OUT] << P1 << ", \n ";
+                output_streams[IR_OUT] << Ir1 << ", \n ";
+                output_streams[TIME_OUT] << time << ", \n";
                 break;
             }
         }
 
     }
-    myfile1.open(output_dir + "num_p_cases_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
-        myfile1<<totalParalyticCases[i]<<"\n";
+        output_streams[PCASE_INCIDENCE_OUT] <<totalParalyticCases[i]<<"\n";
     }
-    myfile1.close();
-    myfile2.open(output_dir + "TTE_N_"+to_string(Tot)+",beta_"+to_string(beta)+",detect_rate_"+to_string(detRate)+"rho_"+to_string(rho)+ ext);
     for (unsigned int i = 0; i < TTE.size(); i++) {
-        myfile2<<TTE[i]<<"\n";
+        output_streams[EXTINCTION_TIME_OUT] <<TTE[i]<<"\n";
     }
-    myfile2.close();
-    myfile.close();
-    myfile3.close();
-    myfile4.close();
-    myfile5.close();
-    myfile6.close();
-    myfile7.close();
-    myfile8.close();
-    myfile9.close();
-    myfile10.close();
+
+    output_results(output_streams);
+
     return 0;
 }
