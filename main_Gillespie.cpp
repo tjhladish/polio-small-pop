@@ -22,18 +22,30 @@ string ext = "_corrected_dist_1.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
 
+//fast waning parameters:
+//kappa = 0.4179
+//rho = 0.2
+
+//intermediate waning parameters:
+//kappa = 0.6383
+//rho = 0.04
+
+//slow waning parameters:
+//kappa = 0.8434
+//rho = 0.02
+
 //waning parameters
-const double KAPPA = 0.4179; //kappas[atoi(argv[1])];
-const double RHO = 0.2; //rhos[atoi(argv[1])];
+const double KAPPA = 0.4179; //waning depth parameter
+const double RHO = 0.2; //waning speed parameter
 
 //other parameters
-const double TOT = 10000;
-const double RECOVERY = 13;//gamma
-const double BETA = 135;
-const double BIRTH = 0.02;
-const double DEATH = 0.02;
-const double PIR =0.005; //type 1 paralysis rate
-const double DET_RATE = 1.0;
+const double TOT        = 10000; //total population size
+const double RECOVERY   = 13; //recovery rate (individuals/year)
+const double BETA       = 135; //contact rate (individuals/year)
+const double BIRTH      = 0.02; //birth rate (per year)
+const double DEATH      = 0.02; //death rate (per year)
+const double PIR        = 0.005; //type 1 paralysis rate (naturally occurring cases)
+const double DET_RATE   = 1.0; //detection rate of paralytic case
 
 enum EventType {FIRST_INFECTION_EVENT,
                 REINFECTION_EVENT,
@@ -58,10 +70,11 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  IR_OUT,
                  TIME_OUT,
                  PCASE_TALLY_OUT,
+                 FIRST_INFECTION_EVENT_TIME_OUT,
                  NUM_OF_OUTPUT_TYPES };
 
-const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
-const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
+//const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
+//const vector<double> rhos   = {0.2, 0.04, 0.02};//fast, intermed, slow
 
 struct Params{
     double recovery;
@@ -73,6 +86,7 @@ struct Params{
     double Tot;
 };
 
+//initializes population at equilibrium level of large population
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     Params * params = (Params *)p;
     const double recovery = (params->recovery);
@@ -94,35 +108,34 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     gsl_vector_set (f,2,recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
     gsl_vector_set (f,3,rho*R - (kappa*beta*P*(I1+kappa*Ir))/Tot - death*P);
     gsl_vector_set (f,4,Tot - (S+I1+R+P+Ir));
-    //gsl_vector_set (f,4,kappa*beta*P*(I1+kappa*Ir)/Tot-(recovery/kappa)*Ir - death*Ir);
-    
-    
+
     return GSL_SUCCESS;
     
 }
 
-EventType sample_event(mt19937& gen, double& totalRate, const double S1, const double I11, const double R1, const double P1, const double Ir1) {
+EventType sample_event(mt19937& gen, double& totalRate, const double S, const double I1, const double R, const double P, const double Ir) {
     //generate unifrn
     double ran=unifdis(gen);
 
     //update the transition rates
+    
     double birthRate;
-    if((S1+I11+R1+P1+Ir1<TOT)){
-        birthRate = BIRTH*(S1+I11+R1+P1+Ir1);
+    if((S+I1+R+P+Ir<TOT)){
+        birthRate           = BIRTH*(S+I1+R+P+Ir); //birth event
     }
     else{
-        birthRate = 0;
+        birthRate           = 0;
     }
-    const double infect1 = BETA*S1/TOT*(I11+ KAPPA*Ir1);
-    const double recover1 = RECOVERY*I11;
-    const double wane = RHO*R1;
-    const double infectr = KAPPA*BETA*P1/TOT*(I11+ KAPPA*Ir1);
-    const double recover2 = (RECOVERY/KAPPA)*Ir1;
-    const double deathS = DEATH*S1;
-    const double deathI1 = DEATH*I11;
-    const double deathR = DEATH*R1;
-    const double deathP = DEATH*P1;
-    const double deathIr = DEATH*Ir1;
+    const double infect1    = BETA*S/TOT*(I1+ KAPPA*Ir); //first infection event
+    const double recover1   = RECOVERY*I1; //first infected revovery event
+    const double wane       = RHO*R; //waning event
+    const double infectr    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir); //reinfection event
+    const double recover2   = (RECOVERY/KAPPA)*Ir; //reinfected recovery event
+    const double deathS     = DEATH*S; //nautral death of naive susceptible
+    const double deathI1    = DEATH*I1; //natural death of first infected
+    const double deathR     = DEATH*R; //natural death of fully immune individual
+    const double deathP     = DEATH*P; //natural death of partially susceptible individual
+    const double deathIr    = DEATH*Ir; //natural death of reinfected individual
 
     totalRate = birthRate+infect1+recover1+wane+infectr+recover2+deathS+deathI1+deathR+deathP+deathIr;
 
@@ -177,7 +190,7 @@ map<string,double> initialize_compartments() {
     }
     
     /* set solver */
-    gsl_multiroot_fsolver_set(workspace_F, &F, x);
+    gsl_multiroot_fsolver_set(workspace_F,&F, x);
     
     /* main loop */
     for(times = 0; times < MAXTIMES; times++) {
@@ -229,6 +242,7 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {P_OUT,               output_dir + "P_"+ base_filename                    },
                                                 {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
                                                 {TIME_OUT,            output_dir + "time_"+ base_filename                 },
+                                                {FIRST_INFECTION_EVENT_TIME_OUT, output_dir + "first_inf_event_time_ "+ base_filename},
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
 
 
@@ -250,6 +264,8 @@ int main(){
     vector<double> totalParalyticCases;     // vector for num paralytic cases
     vector<double> pCasesPerYear;           // vector for paralytic cases per year
     vector<double> histogramCases(50,0);    // vector for counting number of cases per year
+    vector<double> first_infections_per_year; //vector for calculating first infections per year
+    vector<double> histogramFirstInf(200,0); //vector for counting number of first infections per year
 
     //int seed = 0;
     //mt19937 gen(seed);
@@ -259,33 +275,34 @@ int main(){
 
     const map<string, double> compartments = initialize_compartments();
     
-    const int S  = compartments.at("S");
-    const int I1 = compartments.at("I1");
-    const int R  = compartments.at("R");
-    const int P  = compartments.at("P");
-    const int Ir = compartments.at("Ir");
+    const int S_initial  = compartments.at("S"); //naive susceptible (no previous contact w/virus, moves into I1)
+    const int I1_initial = compartments.at("I1"); //first infected (only time paralytic case can occur, recovers into R)
+    const int R_initial  = compartments.at("R"); //recovered (fully immune, wanes into P)
+    const int P_initial  = compartments.at("P"); //partially susceptible (moves into Ir)
+    const int Ir_initial = compartments.at("Ir"); //reinfected (recovers into R)
 
     //The Simulation
     for(int i=0;i<numSims;++i){
         //reset all parameters to original values after each run of the simulation
-        double S1=S;
-        double I11=I1;
-        double R1=R;
-        double P1=P;
-        double Ir1=Ir;
-        double tsc=0;
-        double time=0;
-        int countPIR = 0;
+        double S        = S_initial;
+        double I1       = I1_initial;
+        double R        = R_initial;
+        double P        = P_initial;
+        double Ir       = Ir_initial;
+        double tsc      = 0;
+        double time     = 0;
+        int countPIR    = 0;
         pCaseDetection.clear();
         pCasesPerYear.clear();
+        first_infections_per_year.clear();
         
         //run the simulation for 1 mill steps
         for(int j=0;j<1000001;++j){
             double totalRate = 0;
-            EventType event_type = sample_event(gen, totalRate, S1, I11, R1, P1, Ir1);
+            EventType event_type = sample_event(gen, totalRate, S, I1, R, P, Ir);
             //Pick the event that is to occur based on generated number and rate
             switch (event_type) {
-                case FIRST_INFECTION_EVENT: --S1; ++I11;
+                case FIRST_INFECTION_EVENT: --S; ++I1;
                     //generate a unif random real num to determine if a paralytic case is detected
                     {
                         double rr = unifdis(gen);
@@ -299,21 +316,25 @@ int main(){
                             if((unsigned) year >= pCasesPerYear.size()){
                                 pCasesPerYear.resize(year + 1, 0);
                             }
+                            if((unsigned) year >= first_infections_per_year.size()){
+                                first_infections_per_year.resize(year + 1,0);
+                            }
                             pCasesPerYear[year]++;
+                            first_infections_per_year[year]++;
                             tsc=time;
                         }
                     }
                     break;
-                case REINFECTION_EVENT:                    --P1; ++Ir1; break;
-                case RECOVERY_FROM_FIRST_INFECTION_EVENT:  --I11; ++R1; break;
-                case RECOVERY_FROM_REINFECTION_EVENT:      --Ir1; ++R1; break;
-                case WANING_EVENT:                         --R1;  ++P1; break;
-                case BIRTH_EVENT:                          ++S1;        break;
-                case DEATH_FROM_RECOVERED_EVENT:           --R1;        break;
-                case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT: --P1;        break;
-                case DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT:   --S1;        break;
-                case DEATH_FROM_REINFECTION_EVENT:         --Ir1;       break;
-                case DEATH_FROM_FIRST_INFECTION_EVENT:     --I11;       break;
+                case REINFECTION_EVENT:                    --P; ++Ir; break;
+                case RECOVERY_FROM_FIRST_INFECTION_EVENT:  --I1; ++R; break;
+                case RECOVERY_FROM_REINFECTION_EVENT:      --Ir; ++R; break;
+                case WANING_EVENT:                         --R;  ++P; break;
+                case BIRTH_EVENT:                          ++S;        break;
+                case DEATH_FROM_RECOVERED_EVENT:           --R;        break;
+                case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT: --P;        break;
+                case DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT:   --S;        break;
+                case DEATH_FROM_REINFECTION_EVENT:         --Ir;       break;
+                case DEATH_FROM_FIRST_INFECTION_EVENT:     --I1;       break;
                 default:
                     cerr << "ERROR: Unsupported event type" << endl;
                     break;
@@ -323,28 +344,33 @@ int main(){
             exponential_distribution<>rng(totalRate);
             time+=rng(gen);
 
-            output_streams[S_OUT] << S1      << ", ";
-            output_streams[I1_OUT] << I11     << ", ";
-            output_streams[R_OUT] << R1      << ", ";
-            output_streams[P_OUT] << P1      << ", ";
-            output_streams[IR_OUT] << Ir1     << ", ";
+            output_streams[S_OUT] << S      << ", ";
+            output_streams[I1_OUT] << I1     << ", ";
+            output_streams[R_OUT] << R      << ", ";
+            output_streams[P_OUT] << P      << ", ";
+            output_streams[IR_OUT] << Ir     << ", ";
             output_streams[TIME_OUT] << time    << ", ";
 
             //stopping condition
-            if((I11+Ir1==0) or time>15){
+            if((I1+Ir==0) or time>15){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
+                    first_infections_per_year.resize((int) time + 1,0);
                 }
                 for (auto count: pCasesPerYear) histogramCases[count]++;
+                for (auto count: first_infections_per_year) histogramFirstInf[count]++;
                 if (time != (int) time) {
                     const int last_years_count = pCasesPerYear.back();
+                    const int last_years_count_inf = first_infections_per_year.back();
                     if (last_years_count != 0) {
                         histogramCases[last_years_count] -= 1.0 - fractional_year;
+                        histogramFirstInf[last_years_count_inf] -= 1.0 - fractional_year;
                     } else {
                         histogramCases[0] += fractional_year;
+                        histogramFirstInf[0] += fractional_year;
                     }
                 }
                 /*if(pCasesPerYear.size() == 1){
@@ -361,17 +387,18 @@ int main(){
                 */
                 if (i == numSims-1) {
                     for (double ptally: histogramCases) output_streams[PCASE_TALLY_OUT] << ptally << ","; output_streams[PCASE_TALLY_OUT] << endl;
+                    for(double itally: histogramFirstInf) output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";
                 }
                 
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
                     output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
                 }
                 output_streams[PCASE_INTERVAL_OUT] << "\n";
-                output_streams[S_OUT] << S1 <<",\n";
-                output_streams[I1_OUT] << I11 << ", \n ";
-                output_streams[R_OUT] << R1 << ", \n ";
-                output_streams[P_OUT] << P1 << ", \n ";
-                output_streams[IR_OUT] << Ir1 << ", \n ";
+                output_streams[S_OUT] << S <<",\n";
+                output_streams[I1_OUT] << I1 << ", \n ";
+                output_streams[R_OUT] << R << ", \n ";
+                output_streams[P_OUT] << P << ", \n ";
+                output_streams[IR_OUT] << Ir << ", \n ";
                 output_streams[TIME_OUT] << time << ", \n";
                 break;
             }
