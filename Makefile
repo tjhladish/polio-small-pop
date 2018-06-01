@@ -3,5 +3,5 @@ polio: main_Gillespie.cpp Makefile
 
 check_polio: polio original_checksums
 	rm output/*.csv
-	time ./polio
+	time -p ./polio
 	md5sum -c original_checksums
