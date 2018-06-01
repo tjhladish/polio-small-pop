@@ -60,6 +60,8 @@ enum EventType {FIRST_INFECTION_EVENT,
                 DEATH_FROM_FIRST_INFECTION_EVENT,
                 NUM_OF_EVENT_TYPES};
 
+vector<double> event_rates(NUM_OF_EVENT_TYPES, 0.0);
+
 enum OutputType {PCASE_INTERVAL_OUT,
                  PCASE_INCIDENCE_OUT,
                  EXTINCTION_TIME_OUT,
@@ -102,7 +104,7 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double P = gsl_vector_get(x,3);
     const double Ir = gsl_vector_get(x,4);
 
-    
+
     gsl_vector_set (f,0,birth*Tot - (beta*S*(I1+kappa*Ir))/Tot - death*S);
     gsl_vector_set (f,1,(beta*S*(I1+kappa*Ir))/Tot-recovery*I1-death*I1);
     gsl_vector_set (f,2,recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
@@ -110,74 +112,156 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     gsl_vector_set (f,4,Tot - (S+I1+R+P+Ir));
 
     return GSL_SUCCESS;
-    
 }
 
+bool choose_event(double &ran, const double p) {
+    if (ran < p) {
+        return true;
+    } else {
+        ran -= p;
+        return false;
+    }
+}
+
+void initialize_rates (const double S, const double I1, const double R, const double P, const double Ir) {
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir); //first infection event
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir); //reinfection event
+    event_rates[RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1; //first infected revovery event
+    event_rates[RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir; //reinfected recovery event
+    event_rates[WANING_EVENT]                         = RHO*R; //waning event
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0; //birth event
+    event_rates[DEATH_FROM_RECOVERED_EVENT]           = DEATH*R; //natural death of fully immune individual
+    event_rates[DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P; //natural death of partially susceptible individual
+    event_rates[DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S; //nautral death of naive susceptible
+    event_rates[DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir; //natural death of reinfected individual
+    event_rates[DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1; //natural death of first infected
+}
+
+
+inline void process_first_infection_event                (double &S, double &I1, const double R, const double P, const double Ir) {
+    --S; ++I1;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S;
+    event_rates[DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1;
+}
+
+inline void process_reinfection_event                    (const double S, const double I1, const double R, double &P, double &Ir) {
+    --P; ++Ir;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P;
+    event_rates[DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir;
+}
+
+inline void process_recovery_from_first_infection_event  (const double S, double &I1, double &R, const double P, const double Ir) {
+    --I1; ++R;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1;
+    event_rates[WANING_EVENT]                         = RHO*R;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_RECOVERED_EVENT]           = DEATH*R;
+    event_rates[DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1;
+}
+
+inline void process_recovery_from_reinfection_event      (const double S, const double I1, double &R, const double P, double &Ir) {
+    --Ir; ++R;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir;
+    event_rates[WANING_EVENT]                         = RHO*R;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_RECOVERED_EVENT]           = DEATH*R;
+    event_rates[DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir;
+}
+
+inline void process_waning_event                         (const double S, const double I1, double &R, double &P, const double Ir) {
+    --R;  ++P;
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[WANING_EVENT]                         = RHO*R;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_RECOVERED_EVENT]           = DEATH*R;
+    event_rates[DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P;
+}
+
+inline void process_birth_event                          (double &S, const double I1, const double R, const double P, const double Ir) {
+    ++S;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S;
+}
+
+inline void process_death_from_recovered_event           (const double S, const double I1, double &R, const double P, const double Ir) {
+    --R;
+    event_rates[WANING_EVENT]                         = RHO*R;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_RECOVERED_EVENT]           = DEATH*R;
+}
+
+inline void process_death_from_partial_susceptible_event (const double S, const double I1, const double R, double &P, const double Ir) {
+    --P;
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P;
+}
+
+inline void process_death_from_fully_susceptible_event   (double &S, const double I1, const double R, const double P, const double Ir) {
+    --S;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S;
+}
+
+inline void process_death_from_reinfection_event         (const double S, const double I1, const double R, const double P, double &Ir) {
+    --Ir;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir;
+}
+
+inline void process_death_from_first_infection_event     (const double S, double &I1, const double R, const double P, const double Ir) {
+    --I1;
+    event_rates[FIRST_INFECTION_EVENT]                = BETA*S/TOT*(I1+ KAPPA*Ir);
+    event_rates[REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir);
+    event_rates[RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1;
+    event_rates[BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT) ? BIRTH*(S+I1+R+P+Ir) : 0;
+    event_rates[DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1;
+}
+
+
 EventType sample_event(mt19937& gen, double& totalRate, const double S, const double I1, const double R, const double P, const double Ir) {
+    totalRate = 0.0;
+    for (auto rate: event_rates) totalRate += rate;
+
     //generate unifrn
-    double ran=unifdis(gen);
+    double ran=totalRate*unifdis(gen);
 
-    //update the transition rates
-    
-    double birthRate;
-    if((S+I1+R+P+Ir<TOT)){
-        birthRate           = BIRTH*(S+I1+R+P+Ir); //birth event
+    for (int event = 0; event < NUM_OF_EVENT_TYPES; ++event) {
+        if (choose_event(ran, event_rates[event])) { return (EventType) event; }
     }
-    else{
-        birthRate           = 0;
-    }
-    const double infect1    = BETA*S/TOT*(I1+ KAPPA*Ir); //first infection event
-    const double recover1   = RECOVERY*I1; //first infected revovery event
-    const double wane       = RHO*R; //waning event
-    const double infectr    = KAPPA*BETA*P/TOT*(I1+ KAPPA*Ir); //reinfection event
-    const double recover2   = (RECOVERY/KAPPA)*Ir; //reinfected recovery event
-    const double deathS     = DEATH*S; //nautral death of naive susceptible
-    const double deathI1    = DEATH*I1; //natural death of first infected
-    const double deathR     = DEATH*R; //natural death of fully immune individual
-    const double deathP     = DEATH*P; //natural death of partially susceptible individual
-    const double deathIr    = DEATH*Ir; //natural death of reinfected individual
-
-    totalRate = birthRate+infect1+recover1+wane+infectr+recover2+deathS+deathI1+deathR+deathP+deathIr;
-
-    EventType event_type;
-    if(ran< infect1/totalRate){
-        event_type = FIRST_INFECTION_EVENT;
-    } else if(ran<((infectr+infect1)/totalRate)){
-        event_type = REINFECTION_EVENT;
-    } else if(ran<((recover1+infectr+infect1)/totalRate)){
-        event_type = RECOVERY_FROM_FIRST_INFECTION_EVENT;
-    } else if(ran<((recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = RECOVERY_FROM_REINFECTION_EVENT;
-    } else if(ran<((wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = WANING_EVENT;
-    } else if(ran<((birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = BIRTH_EVENT;
-    } else if(ran<((deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = DEATH_FROM_RECOVERED_EVENT;
-    } else if(ran<((deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT;
-    } else if(ran<((deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT;
-    } else if(ran<((deathIr+deathS+deathP+deathR+birthRate+wane+recover2+recover1+infectr+infect1)/totalRate)){
-        event_type = DEATH_FROM_REINFECTION_EVENT;
-    } else{
-        event_type = DEATH_FROM_FIRST_INFECTION_EVENT;
-    }
-    return event_type;
+    //++event_tally[event_type];*/
+    return NUM_OF_EVENT_TYPES;
 }
 
 map<string,double> initialize_compartments() {
     //initial population from equilibrium values
     Params params = {RECOVERY, BETA, BIRTH, DEATH, KAPPA, RHO, TOT};
-    
+
     int i, times, status;
     gsl_multiroot_function F;
     gsl_multiroot_fsolver *workspace_F;
     gsl_vector *x;
     int num_dimensions = 5;
-    
+
     x = gsl_vector_alloc(num_dimensions);
-    
+
     workspace_F = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids,num_dimensions);
     printf("F solver: %s\n", gsl_multiroot_fsolver_name(workspace_F));
     F.f=&func_m;
@@ -188,14 +272,14 @@ map<string,double> initialize_compartments() {
     for(i = 0; i < num_dimensions; i++){
         gsl_vector_set(x,i,100);
     }
-    
+
     /* set solver */
     gsl_multiroot_fsolver_set(workspace_F,&F, x);
-    
+
     /* main loop */
     for(times = 0; times < MAXTIMES; times++) {
         status = gsl_multiroot_fsolver_iterate(workspace_F);
-        
+
         /*fprintf(stderr, "%d times: ", times);
         for(i = 0; i < num_dimensions; i++) {
             fprintf(stderr, "%10.3e ", gsl_vector_get(workspace_F->x, i));
@@ -208,25 +292,25 @@ map<string,double> initialize_compartments() {
             break;
         }
     }
-    
+
     assert(status == GSL_ENOPROG);
     /* print answer */
     for(i = 0; i < num_dimensions; i++) {
         fprintf(stderr, "%3d %25.17e\n", i, gsl_vector_get(workspace_F->x, i));
     }
-    
+
     assert(num_dimensions==5);
     map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
                                         {"I1", gsl_vector_get(workspace_F->x, 1)},
                                         {"R",  gsl_vector_get(workspace_F->x, 2)},
                                         {"P",  gsl_vector_get(workspace_F->x, 3)},
                                         {"Ir", gsl_vector_get(workspace_F->x, 4)}};
-   
+
     gsl_multiroot_fsolver_free(workspace_F);
-    
+
     /* free x */
     gsl_vector_free(x);
-   
+
     return compartments;
 }
 
@@ -274,7 +358,7 @@ int main(){
     mt19937 gen(rd());                      // random number generator
 
     const map<string, double> compartments = initialize_compartments();
-    
+
     const int S_initial  = compartments.at("S"); //naive susceptible (no previous contact w/virus, moves into I1)
     const int I1_initial = compartments.at("I1"); //first infected (only time paralytic case can occur, recovers into R)
     const int R_initial  = compartments.at("R"); //recovered (fully immune, wanes into P)
@@ -295,14 +379,15 @@ int main(){
         pCaseDetection.clear();
         pCasesPerYear.clear();
         first_infections_per_year.clear();
-        
+        initialize_rates(S, I1, R, P, Ir);
+
         //run the simulation for 1 mill steps
         for(int j=0;j<1000001;++j){
             double totalRate = 0;
             EventType event_type = sample_event(gen, totalRate, S, I1, R, P, Ir);
             //Pick the event that is to occur based on generated number and rate
             switch (event_type) {
-                case FIRST_INFECTION_EVENT: --S; ++I1;
+                case FIRST_INFECTION_EVENT: process_first_infection_event(S, I1, R, P, Ir);
                     //generate a unif random real num to determine if a paralytic case is detected
                     {
                         double rr = unifdis(gen);
@@ -325,16 +410,16 @@ int main(){
                         }
                     }
                     break;
-                case REINFECTION_EVENT:                    --P; ++Ir; break;
-                case RECOVERY_FROM_FIRST_INFECTION_EVENT:  --I1; ++R; break;
-                case RECOVERY_FROM_REINFECTION_EVENT:      --Ir; ++R; break;
-                case WANING_EVENT:                         --R;  ++P; break;
-                case BIRTH_EVENT:                          ++S;        break;
-                case DEATH_FROM_RECOVERED_EVENT:           --R;        break;
-                case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT: --P;        break;
-                case DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT:   --S;        break;
-                case DEATH_FROM_REINFECTION_EVENT:         --Ir;       break;
-                case DEATH_FROM_FIRST_INFECTION_EVENT:     --I1;       break;
+                case REINFECTION_EVENT:                     process_reinfection_event(S, I1, R, P, Ir);                    break;
+                case RECOVERY_FROM_FIRST_INFECTION_EVENT:   process_recovery_from_first_infection_event(S, I1, R, P, Ir);  break;
+                case RECOVERY_FROM_REINFECTION_EVENT:       process_recovery_from_reinfection_event(S, I1, R, P, Ir);      break;
+                case WANING_EVENT:                          process_waning_event(S, I1, R, P, Ir);                         break;
+                case BIRTH_EVENT:                           process_birth_event(S, I1, R, P, Ir);                          break;
+                case DEATH_FROM_RECOVERED_EVENT:            process_death_from_recovered_event(S, I1, R, P, Ir);           break;
+                case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT:  process_death_from_partial_susceptible_event(S, I1, R, P, Ir); break;
+                case DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT:    process_death_from_fully_susceptible_event(S, I1, R, P, Ir);   break;
+                case DEATH_FROM_REINFECTION_EVENT:          process_death_from_reinfection_event(S, I1, R, P, Ir);         break;
+                case DEATH_FROM_FIRST_INFECTION_EVENT:      process_death_from_first_infection_event(S, I1, R, P, Ir);     break;
                 default:
                     cerr << "ERROR: Unsupported event type" << endl;
                     break;
@@ -389,7 +474,7 @@ int main(){
                     for (double ptally: histogramCases) output_streams[PCASE_TALLY_OUT] << ptally << ","; output_streams[PCASE_TALLY_OUT] << endl;
                     for(double itally: histogramFirstInf) output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";
                 }
-                
+
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
                     output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
                 }
