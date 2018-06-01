@@ -350,7 +350,7 @@ int main(){
     vector<double> pCasesPerYear;           // vector for paralytic cases per year
     vector<double> histogramCases(50,0);    // vector for counting number of cases per year
     vector<double> first_infections_per_year; //vector for calculating first infections per year
-    vector<double> histogramFirstInf(50,0); //vector for counting number of first infections per year
+    vector<double> histogramFirstInf(1000,0); //vector for counting number of first infections per year
 
     //int seed = 20;
     //mt19937 gen(seed);
@@ -392,11 +392,9 @@ int main(){
                     //generate a unif random real num to determine if a paralytic case is detected
                     {
                         const int year = (int) time;
-                        cout<<"year "<<year<<"\n";
                         if((unsigned) year >= first_infections_per_year.size()){
                             first_infections_per_year.resize(year + 1,0);
                         }
-                        cout<<"first infections per year size "<<first_infections_per_year.size()<<"\n";
                         first_infections_per_year[year]++;
                         
                         double rr = unifdis(gen);
@@ -442,21 +440,19 @@ int main(){
 
             //stopping condition
             if((I1+Ir==0) or time>15){
-                cout<<"stopping\n";
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
                 const double fractional_year = time - (int) time;
-                cout<<"time "<<time<<"\n";
-                cout<<"fractional year "<<fractional_year<<"\n";
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
                     first_infections_per_year.resize((int) time + 1,0);
                 }
-                cout<<"first infections per year size "<<first_infections_per_year.size()<<"\n";
                 for (auto count: pCasesPerYear) histogramCases[count]++;
-                for (auto count_i: first_infections_per_year) histogramFirstInf[count_i]++;
+                for (auto count_i: first_infections_per_year){
+                    assert(count_i < histogramFirstInf.size());
+                    histogramFirstInf[count_i]++;
+                }
                 if (time != (int) time) {
-                    cout<<"int time !=time loop\n";
                     const int last_years_count = pCasesPerYear.back();
                     
                     if (last_years_count != 0) {
@@ -466,16 +462,12 @@ int main(){
                     }
                     
                     const int last_years_count_inf = first_infections_per_year.back();
-                    cout<<last_years_count_inf<<"\n";
                     if(last_years_count_inf!=0){
-                        cout<<"if last_years_count_inf !=0\n";
                         histogramFirstInf[last_years_count_inf] -= 1.0 - fractional_year;
                     }
                     else{
-                        cout<<"in else\n";
                         histogramFirstInf[0] += fractional_year;
                     }
-                    cout<<"after last years count loop\n";
                 }
                 /*if(pCasesPerYear.size() == 1){
                     pCasesPerYear[0] = time;
@@ -491,20 +483,14 @@ int main(){
                 */
                 if (i == numSims-1) {
                     for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << ",";} output_streams[PCASE_TALLY_OUT] << endl;
-                    //for(double itally: histogramFirstInf){ output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";}
-                        //output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << endl;
+                    for(double itally: histogramFirstInf){ output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";}
+                        output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << endl;
                 }
-                cout<<"after if i == numSims -1\n";
-                cout<<"pcase detection size "<<pCaseDetection.size()<<"\n";
-                cout<<"p case interval out "<<PCASE_INTERVAL_OUT<<"\n";
-                for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
-                output_streams[PCASE_INTERVAL_OUT]<<endl;
-                /*for(unsigned int i = 0; i < pCaseDetection.size(); i++){
-                    cout<<"pCaseDetection["<<i<<"]"<<pCaseDetection[i]<<"\n";
+                //for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
+                //output_streams[PCASE_INTERVAL_OUT]<<endl;
+                for(unsigned int i = 0; i < pCaseDetection.size(); i++){
                     output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
-                }*/
-                cout<<"after pcase interval loop\n";
-                cout<<"num output event types "<<NUM_OF_OUTPUT_TYPES<<"\n";
+                }
                 output_streams[PCASE_INTERVAL_OUT] << "\n";
                 output_streams[S_OUT] << S <<",\n";
                 output_streams[I1_OUT] << I1 << ", \n ";
@@ -512,7 +498,6 @@ int main(){
                 output_streams[P_OUT] << P << ", \n ";
                 output_streams[IR_OUT] << Ir << ", \n ";
                 output_streams[TIME_OUT] << time << ", \n";
-                cout<<"before break\n";
                 break;
             }
         }
@@ -521,12 +506,9 @@ int main(){
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
         output_streams[PCASE_INCIDENCE_OUT] <<totalParalyticCases[i]<<"\n";
     }
-    cout<<"after pcase incidence\n";
     for (unsigned int i = 0; i < TTE.size(); i++) {
         output_streams[EXTINCTION_TIME_OUT] <<TTE[i]<<"\n";
     }
-    cout<<"after extinction time\n";
     output_results(output_streams);
-    cout<<"after output results\n";
     return 0;
 }
