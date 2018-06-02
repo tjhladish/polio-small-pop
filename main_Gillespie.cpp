@@ -73,6 +73,7 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  TIME_OUT,
                  PCASE_TALLY_OUT,
                  FIRST_INFECTION_EVENT_TIME_OUT,
+                 TIME_AT_FIRST_INF_OUT,
                  NUM_OF_OUTPUT_TYPES};
 
 //const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
@@ -328,6 +329,7 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {TIME_OUT,            output_dir + "time_"+ base_filename                 },
                                                 {FIRST_INFECTION_EVENT_TIME_OUT, output_dir + "first_inf_event_time_ "+ base_filename
                                                     },
+                                                {TIME_AT_FIRST_INF_OUT, output_dir + "time_at_first_inf_" + base_filename},
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
 
 
@@ -343,7 +345,7 @@ void output_results(vector<stringstream> &output_streams) {
 int main(){
     vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
 
-    const int numSims=100;                  // Number of Simulations to run:
+    const int numSims=1000;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector
     vector<double> pCaseDetection;          // time between paralytic cases vector
     vector<double> totalParalyticCases;     // vector for num paralytic cases
@@ -351,6 +353,7 @@ int main(){
     vector<double> histogramCases(50,0);    // vector for counting number of cases per year
     vector<double> first_infections_per_year; //vector for calculating first infections per year
     vector<double> histogramFirstInf(1000,0); //vector for counting number of first infections per year
+    vector<double> time_at_first_inf;       //time at first infection vector
 
     //int seed = 20;
     //mt19937 gen(seed);
@@ -374,12 +377,13 @@ int main(){
         double R        = R_initial;
         double P        = P_initial;
         double Ir       = Ir_initial;
-        double tsc      = 0;
+        double tsc      = 0; //used to calculate time between detected paralytic cases
         double time     = 0;
         int countPIR    = 0;
         pCaseDetection.clear();
         pCasesPerYear.clear();
         first_infections_per_year.clear();
+        time_at_first_inf.clear();
         initialize_rates(S, I1, R, P, Ir);
 
         //run the simulation for 1 mill steps
@@ -396,7 +400,7 @@ int main(){
                             first_infections_per_year.resize(year + 1,0);
                         }
                         first_infections_per_year[year]++;
-                        
+                        time_at_first_inf.push_back(time);
                         double rr = unifdis(gen);
                         if(rr<(PIR*DET_RATE)){
                             countPIR++;
@@ -442,16 +446,30 @@ int main(){
             if((I1+Ir==0) or time>15){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
+                for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
+                    output_streams[TIME_AT_FIRST_INF_OUT]<<time_at_first_inf[i];
+                    if(i < time_at_first_inf.size() - 1){
+                        output_streams[TIME_AT_FIRST_INF_OUT]<< ", ";
+                    }
+                }
+                output_streams[TIME_AT_FIRST_INF_OUT] <<"\n";
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
                     first_infections_per_year.resize((int) time + 1,0);
                 }
                 for (auto count: pCasesPerYear) histogramCases[count]++;
-                for (auto count_i: first_infections_per_year){
+                for(unsigned int i = 0; i < first_infections_per_year.size();i++){
+                    output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<< first_infections_per_year[i];
+                    if(i < first_infections_per_year.size()-1){
+                        output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<<",";
+                    }
+                }
+                output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<<"\n";
+                /*for (auto count_i: first_infections_per_year){
                     assert(count_i < histogramFirstInf.size());
                     histogramFirstInf[count_i]++;
-                }
+                }*/
                 if (time != (int) time) {
                     const int last_years_count = pCasesPerYear.back();
                     
@@ -461,13 +479,13 @@ int main(){
                         histogramCases[0] += fractional_year;
                     }
                     
-                    const int last_years_count_inf = first_infections_per_year.back();
+                    /*const int last_years_count_inf = first_infections_per_year.back();
                     if(last_years_count_inf!=0){
                         histogramFirstInf[last_years_count_inf] -= 1.0 - fractional_year;
                     }
                     else{
                         histogramFirstInf[0] += fractional_year;
-                    }
+                    }*/
                 }
                 /*if(pCasesPerYear.size() == 1){
                     pCasesPerYear[0] = time;
@@ -483,8 +501,8 @@ int main(){
                 */
                 if (i == numSims-1) {
                     for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << ",";} output_streams[PCASE_TALLY_OUT] << endl;
-                    for(double itally: histogramFirstInf){ output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";}
-                        output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << endl;
+                    //for(double itally: histogramFirstInf){ output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";}
+                     //   output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << endl;
                 }
                 //for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
                 //output_streams[PCASE_INTERVAL_OUT]<<endl;
@@ -492,12 +510,12 @@ int main(){
                     output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
                 }
                 output_streams[PCASE_INTERVAL_OUT] << "\n";
-                output_streams[S_OUT] << S <<",\n";
-                output_streams[I1_OUT] << I1 << ", \n ";
-                output_streams[R_OUT] << R << ", \n ";
-                output_streams[P_OUT] << P << ", \n ";
-                output_streams[IR_OUT] << Ir << ", \n ";
-                output_streams[TIME_OUT] << time << ", \n";
+                output_streams[S_OUT] << S <<"\n";
+                output_streams[I1_OUT] << I1 << " \n ";
+                output_streams[R_OUT] << R << " \n ";
+                output_streams[P_OUT] << P << " \n ";
+                output_streams[IR_OUT] << Ir << " \n ";
+                output_streams[TIME_OUT] << time << " \n";
                 break;
             }
         }
