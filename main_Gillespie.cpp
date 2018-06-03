@@ -74,6 +74,7 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  PCASE_TALLY_OUT,
                  FIRST_INFECTION_EVENT_TIME_OUT,
                  TIME_AT_FIRST_INF_OUT,
+                 NO_P_CASES_NO_TRANS_OUT,
                  NUM_OF_OUTPUT_TYPES};
 
 //const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
@@ -330,6 +331,8 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {FIRST_INFECTION_EVENT_TIME_OUT, output_dir + "first_inf_event_time_ "+ base_filename
                                                     },
                                                 {TIME_AT_FIRST_INF_OUT, output_dir + "time_at_first_inf_" + base_filename},
+                                                {NO_P_CASES_NO_TRANS_OUT, output_dir + "no_p_cases_no_trans_" + base_filename
+                                                    },
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
 
 
@@ -347,13 +350,14 @@ int main(){
 
     const int numSims=1000;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector
-    vector<double> pCaseDetection;          // time between paralytic cases vector
+    vector<double> pCaseDetection;          // time between paralytic cases vector (also use for case-free periods)
     vector<double> totalParalyticCases;     // vector for num paralytic cases
     vector<double> pCasesPerYear;           // vector for paralytic cases per year
     vector<double> histogramCases(50,0);    // vector for counting number of cases per year
     vector<double> first_infections_per_year; //vector for calculating first infections per year
     vector<double> histogramFirstInf(1000,0); //vector for counting number of first infections per year
     vector<double> time_at_first_inf;       //time at first infection vector
+    vector<double> case_free_and_trans_free; //case free periods without wild virus transmission vector
 
     //int seed = 20;
     //mt19937 gen(seed);
@@ -379,11 +383,13 @@ int main(){
         double Ir       = Ir_initial;
         double tsc      = 0; //used to calculate time between detected paralytic cases
         double time     = 0;
+        double time_inf = 0; //used to calculate time between case free periods w/out wild virus transmission
         int countPIR    = 0;
         pCaseDetection.clear();
         pCasesPerYear.clear();
         first_infections_per_year.clear();
         time_at_first_inf.clear();
+        case_free_and_trans_free.clear();
         initialize_rates(S, I1, R, P, Ir);
 
         //run the simulation for 1 mill steps
@@ -401,22 +407,31 @@ int main(){
                         }
                         first_infections_per_year[year]++;
                         time_at_first_inf.push_back(time);
+                        
                         double rr = unifdis(gen);
                         if(rr<(PIR*DET_RATE)){
                             countPIR++;
-                            if(countPIR > 1){
+                            if(time_inf == tsc){//for Eichner & Dietz statistic -- only captures case free w/no trans
+                                case_free_and_trans_free.push_back(time - time_inf);
+                            }
+                            //if(countPIR > 1){ //comment out to calculate Eichner & Dietz statistic
                                 pCaseDetection.push_back(time-tsc);
                                 //tsc=time;
-                            }
+                            //}
                             if((unsigned) year >= pCasesPerYear.size()){
                                 pCasesPerYear.resize(year + 1, 0);
                             }
                             pCasesPerYear[year]++;
                             tsc=time;
                         }
+                        time_inf = time; //time at last wpv transmission
                     }
                     break;
-                case REINFECTION_EVENT:                     process_reinfection_event(S, I1, R, P, Ir);                    break;
+                case REINFECTION_EVENT:                     process_reinfection_event(S, I1, R, P, Ir);
+                    {
+                        time_inf = time; //time at last wpv transmission
+                    }
+                    break;
                 case RECOVERY_FROM_FIRST_INFECTION_EVENT:   process_recovery_from_first_infection_event(S, I1, R, P, Ir);  break;
                 case RECOVERY_FROM_REINFECTION_EVENT:       process_recovery_from_reinfection_event(S, I1, R, P, Ir);      break;
                 case WANING_EVENT:                          process_waning_event(S, I1, R, P, Ir);                         break;
@@ -453,6 +468,13 @@ int main(){
                     }
                 }
                 output_streams[TIME_AT_FIRST_INF_OUT] <<"\n";
+                for(unsigned int i = 0; i < case_free_and_trans_free.size(); i++){
+                    output_streams[NO_P_CASES_NO_TRANS_OUT]<<case_free_and_trans_free[i];
+                    if(i < case_free_and_trans_free.size()-1){
+                        output_streams[NO_P_CASES_NO_TRANS_OUT]<<",";
+                    }
+                }
+                output_streams[NO_P_CASES_NO_TRANS_OUT]<<"\n";
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
@@ -507,7 +529,10 @@ int main(){
                 //for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
                 //output_streams[PCASE_INTERVAL_OUT]<<endl;
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
-                    output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i] << " , ";
+                    output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i];
+                    if(i < pCaseDetection.size()-1){
+                        output_streams[PCASE_INTERVAL_OUT]<<",";
+                    }
                 }
                 output_streams[PCASE_INTERVAL_OUT] << "\n";
                 output_streams[S_OUT] << S <<"\n";
