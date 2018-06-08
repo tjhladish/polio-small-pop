@@ -7,7 +7,8 @@
 #include <chrono>
 #include <fstream>
 #include <string>
-//#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_math.h>
 #include <assert.h>
@@ -301,11 +302,37 @@ map<string,double> initialize_compartments() {
     }
 
     assert(num_dimensions==5);
-    map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
-                                        {"I1", gsl_vector_get(workspace_F->x, 1)},
-                                        {"R",  gsl_vector_get(workspace_F->x, 2)},
-                                        {"P",  gsl_vector_get(workspace_F->x, 3)},
-                                        {"Ir", gsl_vector_get(workspace_F->x, 4)}};
+    
+    //initialize compartments using multinomial
+    gsl_rng* r;
+    r = gsl_rng_alloc(gsl_rng_mt19937);
+    
+    size_t num_Compartments = num_dimensions;
+    unsigned int num_Trials = params.Tot;
+    double *p = new double[num_Compartments];
+    
+    //generates weights for compartments using equilibrium value from large population
+    for(unsigned int i = 0; i < num_Compartments; i++){
+        p[i] = gsl_vector_get(workspace_F->x, i);
+    }
+    unsigned int *n = new unsigned int[num_Compartments];
+    gsl_ran_multinomial(r, num_Compartments,num_Trials,p,n);
+    for(int i = 0; i < 5; i++){
+        cout<<n[i]<<"\n";
+    }
+    map<string, double> compartments = {{"S",  n[0]},
+                                        {"I1", n[1]},
+                                        {"R",  n[2]},
+                                        {"P",  n[3]},
+                                        {"Ir", n[4]}};
+    delete[] p;
+    delete[] n;
+    gsl_rng_free(r);
+    //map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
+    //                                    {"I1", gsl_vector_get(workspace_F->x, 1)},
+    //                                    {"R",  gsl_vector_get(workspace_F->x, 2)},
+    //                                    {"P",  gsl_vector_get(workspace_F->x, 3)},
+    //                                    {"Ir", gsl_vector_get(workspace_F->x, 4)}};
 
     gsl_multiroot_fsolver_free(workspace_F);
 
@@ -345,7 +372,7 @@ void output_results(vector<stringstream> &output_streams) {
 int main(){
     vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
 
-    const int numSims=10000;                  // Number of Simulations to run:
+    const int numSims=1;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector -- use to get numerator for Eichner & Dietz stat
     vector<double> pCaseDetection;          // time between paralytic cases vector (also use for case-free periods)
     vector<double> totalParalyticCases;     // vector for num paralytic cases
