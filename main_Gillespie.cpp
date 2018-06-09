@@ -14,12 +14,13 @@
 #include <assert.h>
 #include <sstream>
 #include <map>
+#include<sys/time.h>
 
 using namespace std;
 
 //string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_corrected_dist_2.csv";
+string ext = "_ES_stat_multinomial.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
 
@@ -114,6 +115,37 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     gsl_vector_set (f,4,Tot - (S+I1+R+P+Ir));
 
     return GSL_SUCCESS;
+}
+
+vector<int> multinomial_Compartments(int num_Compartments,const vector<double> expectedComp){
+    
+    const gsl_rng_type* T;
+    gsl_rng* r;
+    gsl_rng_env_setup();
+    T = gsl_rng_default;
+    r = gsl_rng_alloc(T);
+    //sets seed by time of day
+    struct timeval tv;
+    gettimeofday(&tv,0);
+    unsigned long mySeed = tv.tv_sec + tv.tv_usec;
+    gsl_rng_set(r,mySeed);
+    unsigned int num_Trials = TOT;
+    double *p = new double[num_Compartments];
+    for(unsigned int i = 0; i < expectedComp.size(); i++){
+        p[i] = expectedComp[i];
+    }
+    vector<int> initialCompartments(num_Compartments);
+    //generates weights for compartments using equilibrium value from large population
+
+    unsigned int *n = new unsigned int[num_Compartments];
+    gsl_ran_multinomial(r, num_Compartments,num_Trials,p,n);
+    for(int i = 0; i < num_Compartments; i++){
+        initialCompartments[i] = n[i];
+    }
+    delete[] n;
+    delete[] p;
+    gsl_rng_free(r);
+    return initialCompartments;
 }
 
 bool choose_event(double &ran, const double p) {
@@ -252,7 +284,7 @@ EventType sample_event(mt19937& gen, double& totalRate, const double S, const do
     return NUM_OF_EVENT_TYPES;
 }
 
-map<string,double> initialize_compartments() {
+vector<double> initialize_compartments() {
     //initial population from equilibrium values
     Params params = {RECOVERY, BETA, BIRTH, DEATH, KAPPA, RHO, TOT};
 
@@ -302,37 +334,17 @@ map<string,double> initialize_compartments() {
     }
 
     assert(num_dimensions==5);
+    vector<double> compartments =   {gsl_vector_get(workspace_F->x,0),
+                                     gsl_vector_get(workspace_F->x,1),
+                                     gsl_vector_get(workspace_F->x,2),
+                                     gsl_vector_get(workspace_F->x,3),
+                                     gsl_vector_get(workspace_F->x,4)};
     
-    //initialize compartments using multinomial
-    gsl_rng* r;
-    r = gsl_rng_alloc(gsl_rng_mt19937);
-    
-    size_t num_Compartments = num_dimensions;
-    unsigned int num_Trials = params.Tot;
-    double *p = new double[num_Compartments];
-    
-    //generates weights for compartments using equilibrium value from large population
-    for(unsigned int i = 0; i < num_Compartments; i++){
-        p[i] = gsl_vector_get(workspace_F->x, i);
-    }
-    unsigned int *n = new unsigned int[num_Compartments];
-    gsl_ran_multinomial(r, num_Compartments,num_Trials,p,n);
-    for(int i = 0; i < 5; i++){
-        cout<<n[i]<<"\n";
-    }
-    map<string, double> compartments = {{"S",  n[0]},
-                                        {"I1", n[1]},
-                                        {"R",  n[2]},
-                                        {"P",  n[3]},
-                                        {"Ir", n[4]}};
-    delete[] p;
-    delete[] n;
-    gsl_rng_free(r);
-    //map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
-    //                                    {"I1", gsl_vector_get(workspace_F->x, 1)},
-    //                                    {"R",  gsl_vector_get(workspace_F->x, 2)},
-    //                                    {"P",  gsl_vector_get(workspace_F->x, 3)},
-    //                                    {"Ir", gsl_vector_get(workspace_F->x, 4)}};
+    /*map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
+                                        {"I1", gsl_vector_get(workspace_F->x, 1)},
+                                        {"R",  gsl_vector_get(workspace_F->x, 2)},
+                                        {"P",  gsl_vector_get(workspace_F->x, 3)},
+                                        {"Ir", gsl_vector_get(workspace_F->x, 4)}};*/
 
     gsl_multiroot_fsolver_free(workspace_F);
 
@@ -372,7 +384,7 @@ void output_results(vector<stringstream> &output_streams) {
 int main(){
     vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
 
-    const int numSims=1;                  // Number of Simulations to run:
+    const int numSims=10000;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector -- use to get numerator for Eichner & Dietz stat
     vector<double> pCaseDetection;          // time between paralytic cases vector (also use for case-free periods)
     vector<double> totalParalyticCases;     // vector for num paralytic cases
@@ -387,23 +399,25 @@ int main(){
 
     random_device rd;                       // generates a random real number for the seed
     mt19937 gen(rd());                      // random number generator
+    
+    //find expected compartment size
+    const vector<double> compartments = initialize_compartments();
 
-    const map<string, double> compartments = initialize_compartments();
-
-    const int S_initial  = compartments.at("S"); //naive susceptible (no previous contact w/virus, moves into I1)
+    /*const int S_initial  = compartments.at("S"); //naive susceptible (no previous contact w/virus, moves into I1)
     const int I1_initial = compartments.at("I1"); //first infected (only time paralytic case can occur, recovers into R)
     const int R_initial  = compartments.at("R"); //recovered (fully immune, wanes into P)
     const int P_initial  = compartments.at("P"); //partially susceptible (moves into Ir)
-    const int Ir_initial = compartments.at("Ir"); //reinfected (recovers into R)
+    const int Ir_initial = compartments.at("Ir"); //reinfected (recovers into R)*/
 
     //The Simulation
     for(int i=0;i<numSims;++i){
         //reset all parameters to original values after each run of the simulation
-        double S        = S_initial;
-        double I1       = I1_initial;
-        double R        = R_initial;
-        double P        = P_initial;
-        double Ir       = Ir_initial;
+        vector<int> initialValues = multinomial_Compartments(compartments.size(),compartments);
+        double S        = initialValues[0];
+        double I1       = initialValues[1];
+        double R        = initialValues[2];
+        double P        = initialValues[3];
+        double Ir       = initialValues[4];
         double tsc      = 0; //used to calculate time between detected paralytic cases
         double time     = 0;
         int countPIR    = 0;
