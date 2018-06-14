@@ -20,7 +20,7 @@ using namespace std;
 
 //string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_ES_stat_multinomial.csv";
+string ext = "_ES_stat_multinomial_full.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
 
@@ -428,7 +428,7 @@ int main(){
         initialize_rates(S, I1, R, P, Ir);
 
         //run the simulation for 1 mill steps
-        for(int j=0;j<1000001;++j){
+        for(int j=0;j<100000001;++j){
             double totalRate = 0;
             EventType event_type = sample_event(gen, totalRate, S, I1, R, P, Ir);
             //Pick the event that is to occur based on generated number and rate
@@ -486,7 +486,7 @@ int main(){
             output_streams[TIME_OUT] << time    << ", ";
 
             //stopping condition
-            if((I1+Ir==0) or time>10){
+            if((time >= 10) and (I1+Ir)==0){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
                 pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
