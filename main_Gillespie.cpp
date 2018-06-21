@@ -23,6 +23,7 @@ string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims 
 string ext = "_ES_stat_multinomial_full.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
+const string SEP = " "; // output separator--was ", "
 
 //fast waning parameters:
 //kappa = 0.4179
@@ -42,12 +43,19 @@ const double RHO = 0.2; //waning speed parameter
 
 //other parameters
 const double TOT        = 10000; //total population size
-const double RECOVERY   = 13; //recovery rate (individuals/year)
-const double BETA       = 135; //contact rate (individuals/year)
-const double BIRTH      = 0.02; //birth rate (per year)
-const double DEATH      = 0.02; //death rate (per year)
+const double RECOVERY   = 13;    //recovery rate (individuals/year)
+const double BETA       = 135;   //contact rate (individuals/year)
+const double BIRTH      = 0.02;  //birth rate (per year)
+const double DEATH      = 0.02;  //death rate (per year)
 const double PIR        = 0.005; //type 1 paralysis rate (naturally occurring cases)
-const double DET_RATE   = 1.0; //detection rate of paralytic case
+const double DET_RATE   = 1.0;   //detection rate of paralytic case
+
+enum StateType {S_STATE,
+                I1_STATE,
+                R_STATE,
+                P_STATE,
+                IR_STATE,
+                NUM_OF_STATE_TYPES};
 
 enum EventType {FIRST_INFECTION_EVENT,
                 REINFECTION_EVENT,
@@ -101,24 +109,23 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double kappa = (params->kappa);
     const double rho = (params->rho);
     const double Tot = (params->Tot);
-    const double S = gsl_vector_get(x,0);
-    const double I1 = gsl_vector_get(x,1);
-    const double R = gsl_vector_get(x,2);
-    const double P = gsl_vector_get(x,3);
-    const double Ir = gsl_vector_get(x,4);
+    const double S  = gsl_vector_get(x,S_STATE);
+    const double I1 = gsl_vector_get(x,I1_STATE);
+    const double R  = gsl_vector_get(x,R_STATE);
+    const double P  = gsl_vector_get(x,P_STATE);
+    const double Ir = gsl_vector_get(x,IR_STATE);
 
-
-    gsl_vector_set (f,0,birth*Tot - (beta*S*(I1+kappa*Ir))/Tot - death*S);
-    gsl_vector_set (f,1,(beta*S*(I1+kappa*Ir))/Tot-recovery*I1-death*I1);
-    gsl_vector_set (f,2,recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
-    gsl_vector_set (f,3,rho*R - (kappa*beta*P*(I1+kappa*Ir))/Tot - death*P);
-    gsl_vector_set (f,4,Tot - (S+I1+R+P+Ir));
+    gsl_vector_set (f, S_STATE,  birth*Tot - (beta*S*(I1+kappa*Ir))/Tot - death*S);
+    gsl_vector_set (f, I1_STATE, (beta*S*(I1+kappa*Ir))/Tot-recovery*I1-death*I1);
+    gsl_vector_set (f, R_STATE,  recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
+    gsl_vector_set (f, P_STATE,  rho*R - (kappa*beta*P*(I1+kappa*Ir))/Tot - death*P);
+    gsl_vector_set (f, IR_STATE, Tot - (S+I1+R+P+Ir));
 
     return GSL_SUCCESS;
 }
 
 vector<int> multinomial_Compartments(int num_Compartments,const vector<double> expectedComp){
-    
+
     const gsl_rng_type* T;
     gsl_rng* r;
     gsl_rng_env_setup();
@@ -334,21 +341,14 @@ vector<double> initialize_compartments() {
     }
 
     assert(num_dimensions==5);
-    vector<double> compartments =   {gsl_vector_get(workspace_F->x,0),
-                                     gsl_vector_get(workspace_F->x,1),
-                                     gsl_vector_get(workspace_F->x,2),
-                                     gsl_vector_get(workspace_F->x,3),
-                                     gsl_vector_get(workspace_F->x,4)};
-    
-    /*map<string, double> compartments = {{"S",  gsl_vector_get(workspace_F->x, 0)},
-                                        {"I1", gsl_vector_get(workspace_F->x, 1)},
-                                        {"R",  gsl_vector_get(workspace_F->x, 2)},
-                                        {"P",  gsl_vector_get(workspace_F->x, 3)},
-                                        {"Ir", gsl_vector_get(workspace_F->x, 4)}};*/
+    vector<double> compartments = {gsl_vector_get(workspace_F->x,S_STATE),
+                                   gsl_vector_get(workspace_F->x,I1_STATE),
+                                   gsl_vector_get(workspace_F->x,R_STATE),
+                                   gsl_vector_get(workspace_F->x,P_STATE),
+                                   gsl_vector_get(workspace_F->x,IR_STATE)};
 
     gsl_multiroot_fsolver_free(workspace_F);
 
-    /* free x */
     gsl_vector_free(x);
 
     return compartments;
@@ -397,27 +397,22 @@ int main(){
 
     random_device rd;                       // generates a random real number for the seed
     mt19937 gen(rd());                      // random number generator
-    
+
     //find expected compartment size
     const vector<double> compartments = initialize_compartments();
-
-    /*const int S_initial  = compartments.at("S"); //naive susceptible (no previous contact w/virus, moves into I1)
-    const int I1_initial = compartments.at("I1"); //first infected (only time paralytic case can occur, recovers into R)
-    const int R_initial  = compartments.at("R"); //recovered (fully immune, wanes into P)
-    const int P_initial  = compartments.at("P"); //partially susceptible (moves into Ir)
-    const int Ir_initial = compartments.at("Ir"); //reinfected (recovers into R)*/
 
     //The Simulation
     for(int i=0;i<numSims;++i){
         //reset all parameters to original values after each run of the simulation
         vector<int> initialValues = multinomial_Compartments(compartments.size(),compartments);
-        double S        = initialValues[0];
-        double I1       = initialValues[1];
-        double R        = initialValues[2];
-        double P        = initialValues[3];
-        double Ir       = initialValues[4];
+        double S        = initialValues[S_STATE];   //naive susceptible (no previous contact w/virus, moves into I1)
+        double I1       = initialValues[I1_STATE];  //first infected (only time paralytic case can occur, recovers into R)
+        double R        = initialValues[R_STATE];   //recovered (fully immune, wanes into P)
+        double P        = initialValues[P_STATE];   //partially susceptible (moves into Ir)
+        double Ir       = initialValues[IR_STATE];  //reinfected (recovers into R)
         double tsc      = 0; //used to calculate time between detected paralytic cases
         double time     = 0;
+        int day_ctr     = 0;
         int countPIR    = 0;
         pCaseDetection.clear();
         pCasesPerYear.clear();
@@ -440,7 +435,7 @@ int main(){
                         }
                         first_infections_per_year[year]++;
                         time_at_first_inf.push_back(time);
-                        
+
                         double rr = unifdis(gen);
                         if(rr<(PIR*DET_RATE)){
                             countPIR++;
@@ -476,12 +471,17 @@ int main(){
             exponential_distribution<>rng(totalRate);
             time+=rng(gen);
 
-            output_streams[S_OUT] << S      << ", ";
-            output_streams[I1_OUT] << I1     << ", ";
-            output_streams[R_OUT] << R      << ", ";
-            output_streams[P_OUT] << P      << ", ";
-            output_streams[IR_OUT] << Ir     << ", ";
-            output_streams[TIME_OUT] << time    << ", ";
+            const int current_day = (int) (time*365);
+            while (current_day > day_ctr) {
+                output_streams[S_OUT]  << S  << SEP;
+                output_streams[I1_OUT] << I1 << SEP;
+                output_streams[R_OUT]  << R  << SEP;
+                output_streams[P_OUT]  << P  << SEP;
+                output_streams[IR_OUT] << Ir << SEP;
+                output_streams[TIME_OUT] << current_day << SEP;
+                //output_streams[TIME_OUT] << time    << SEP;
+                day_ctr++;
+            }
 
             //stopping condition
             if((time >= 10) and (I1+Ir)==0){
@@ -491,7 +491,7 @@ int main(){
                 for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
                     output_streams[FIRST_INF_EVENT_TIMES_OUT]<<time_at_first_inf[i];
                     if(i < time_at_first_inf.size() - 1){
-                        output_streams[FIRST_INF_EVENT_TIMES_OUT]<< ", ";
+                        output_streams[FIRST_INF_EVENT_TIMES_OUT] << SEP;
                     }
                 }
                 output_streams[FIRST_INF_EVENT_TIMES_OUT] <<"\n";
@@ -504,54 +504,27 @@ int main(){
                 for(unsigned int i = 0; i < first_infections_per_year.size();i++){
                     output_streams[FIRST_INF_PER_YEAR_OUT]<< first_infections_per_year[i];
                     if(i < first_infections_per_year.size()-1){
-                        output_streams[FIRST_INF_PER_YEAR_OUT]<<",";
+                        output_streams[FIRST_INF_PER_YEAR_OUT] << SEP;
                     }
                 }
                 output_streams[FIRST_INF_PER_YEAR_OUT]<<"\n";
-                /*for (auto count_i: first_infections_per_year){
-                    assert(count_i < histogramFirstInf.size());
-                    histogramFirstInf[count_i]++;
-                }*/
                 if (time != (int) time) {
                     const int last_years_count = pCasesPerYear.back();
-                    
+
                     if (last_years_count != 0) {
                         histogramCases[last_years_count] -= 1.0 - fractional_year;
                     } else {
                         histogramCases[0] += fractional_year;
                     }
-                    
-                    /*const int last_years_count_inf = first_infections_per_year.back();
-                    if(last_years_count_inf!=0){
-                        histogramFirstInf[last_years_count_inf] -= 1.0 - fractional_year;
-                    }
-                    else{
-                        histogramFirstInf[0] += fractional_year;
-                    }*/
-                }
-                /*if(pCasesPerYear.size() == 1){
-                    pCasesPerYear[0] = time;
-                }*/
-                //cout<<"pcases size "<<pCasesPerYear.size()<<endl;
 
-                /*cout << "end time: " << time << "\npcases time series: ";
-                for(unsigned int i = 0; i < pCasesPerYear.size() - 1; i++){
-                    cout<<pCasesPerYear[i]<<",";
                 }
-                if (pCasesPerYear.size()>0) cout<<pCasesPerYear.back() << endl;
-                cout << "pcase tally: ";
-                */
                 if (i == numSims-1) {
-                    for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << ",";} output_streams[PCASE_TALLY_OUT] << endl;
-                    //for(double itally: histogramFirstInf){ output_streams[FIRST_INF_PER_YEAR_OUT] << itally << ",";}
-                     //   output_streams[FIRST_INF_PER_YEAR_OUT] << endl;
+                    for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << SEP;} output_streams[PCASE_TALLY_OUT] << endl;
                 }
-                //for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
-                //output_streams[PCASE_INTERVAL_OUT]<<endl;
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
                     output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i];
                     if(i < pCaseDetection.size()-1){
-                        output_streams[PCASE_INTERVAL_OUT]<<",";
+                        output_streams[PCASE_INTERVAL_OUT] << SEP;
                     }
                 }
                 output_streams[PCASE_INTERVAL_OUT] << "\n";
@@ -560,7 +533,8 @@ int main(){
                 output_streams[R_OUT] << R << " \n ";
                 output_streams[P_OUT] << P << " \n ";
                 output_streams[IR_OUT] << Ir << " \n ";
-                output_streams[TIME_OUT] << time << " \n";
+                output_streams[TIME_OUT] << day_ctr << " \n";
+                //output_streams[TIME_OUT] << time << " \n";
                 break;
             }
         }
