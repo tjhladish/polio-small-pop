@@ -74,8 +74,8 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  IR_OUT,
                  TIME_OUT,
                  PCASE_TALLY_OUT,
-                 FIRST_INFECTION_EVENT_TIME_OUT,
-                 TIME_AT_FIRST_INF_OUT,
+                 FIRST_INF_PER_YEAR_OUT,
+                 FIRST_INF_EVENT_TIMES_OUT,
                  NUM_OF_OUTPUT_TYPES};
 
 //const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
@@ -366,11 +366,9 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {P_OUT,               output_dir + "P_"+ base_filename                    },
                                                 {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
                                                 {TIME_OUT,            output_dir + "time_"+ base_filename                 },
-                                                {FIRST_INFECTION_EVENT_TIME_OUT, output_dir + "first_inf_event_time_ "+ base_filename
-                                                    },
-                                                {TIME_AT_FIRST_INF_OUT, output_dir + "time_at_first_inf_" + base_filename},
+                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename },
+                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename},
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
-
 
     for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
         const OutputType ot = (OutputType) ot_idx;
@@ -491,12 +489,12 @@ int main(){
                 TTE.push_back(time);
                 pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
                 for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
-                    output_streams[TIME_AT_FIRST_INF_OUT]<<time_at_first_inf[i];
+                    output_streams[FIRST_INF_EVENT_TIMES_OUT]<<time_at_first_inf[i];
                     if(i < time_at_first_inf.size() - 1){
-                        output_streams[TIME_AT_FIRST_INF_OUT]<< ", ";
+                        output_streams[FIRST_INF_EVENT_TIMES_OUT]<< ", ";
                     }
                 }
-                output_streams[TIME_AT_FIRST_INF_OUT] <<"\n";
+                output_streams[FIRST_INF_EVENT_TIMES_OUT] <<"\n";
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
@@ -504,12 +502,12 @@ int main(){
                 }
                 for (auto count: pCasesPerYear) histogramCases[count]++;
                 for(unsigned int i = 0; i < first_infections_per_year.size();i++){
-                    output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<< first_infections_per_year[i];
+                    output_streams[FIRST_INF_PER_YEAR_OUT]<< first_infections_per_year[i];
                     if(i < first_infections_per_year.size()-1){
-                        output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<<",";
+                        output_streams[FIRST_INF_PER_YEAR_OUT]<<",";
                     }
                 }
-                output_streams[FIRST_INFECTION_EVENT_TIME_OUT]<<"\n";
+                output_streams[FIRST_INF_PER_YEAR_OUT]<<"\n";
                 /*for (auto count_i: first_infections_per_year){
                     assert(count_i < histogramFirstInf.size());
                     histogramFirstInf[count_i]++;
@@ -545,8 +543,8 @@ int main(){
                 */
                 if (i == numSims-1) {
                     for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << ",";} output_streams[PCASE_TALLY_OUT] << endl;
-                    //for(double itally: histogramFirstInf){ output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << itally << ",";}
-                     //   output_streams[FIRST_INFECTION_EVENT_TIME_OUT] << endl;
+                    //for(double itally: histogramFirstInf){ output_streams[FIRST_INF_PER_YEAR_OUT] << itally << ",";}
+                     //   output_streams[FIRST_INF_PER_YEAR_OUT] << endl;
                 }
                 //for(double pcase: pCaseDetection){output_streams[PCASE_INTERVAL_OUT]<<pcase<<",";}
                 //output_streams[PCASE_INTERVAL_OUT]<<endl;
