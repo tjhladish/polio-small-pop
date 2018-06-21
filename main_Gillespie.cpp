@@ -20,7 +20,7 @@ using namespace std;
 
 //string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_ES_stat_multinomial_full.csv";
+string ext = "_ES_stat_multinomial_extinct_test.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
 const string SEP = " "; // output separator--was ", "
@@ -84,6 +84,7 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  PCASE_TALLY_OUT,
                  FIRST_INF_PER_YEAR_OUT,
                  FIRST_INF_EVENT_TIMES_OUT,
+                 CIRCULATION_INTERVAL_OUT,
                  NUM_OF_OUTPUT_TYPES};
 
 //const vector<double> kappas = {0.4179, 0.6383, 0.8434};//fast, intermed, slow
@@ -341,11 +342,11 @@ vector<double> initialize_compartments() {
     }
 
     assert(num_dimensions==5);
-    vector<double> compartments = {gsl_vector_get(workspace_F->x,S_STATE),
-                                   gsl_vector_get(workspace_F->x,I1_STATE),
-                                   gsl_vector_get(workspace_F->x,R_STATE),
-                                   gsl_vector_get(workspace_F->x,P_STATE),
-                                   gsl_vector_get(workspace_F->x,IR_STATE)};
+    vector<double> compartments =   {gsl_vector_get(workspace_F->x,0),
+                                     gsl_vector_get(workspace_F->x,1),
+                                     gsl_vector_get(workspace_F->x,2),
+                                     gsl_vector_get(workspace_F->x,3),
+                                     gsl_vector_get(workspace_F->x,4)};
 
     gsl_multiroot_fsolver_free(workspace_F);
 
@@ -365,9 +366,14 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {R_OUT,               output_dir + "R_"+ base_filename                    },
                                                 {P_OUT,               output_dir + "P_"+ base_filename                    },
                                                 {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
-                                                {TIME_OUT,            output_dir + "time_"+ base_filename                 },
-                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename },
-                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename},
+                                                {TIME_OUT,            output_dir + "time_N_" + base_filename
+                                                    },
+                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename
+                                                },
+                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename
+                                                },
+                                                {CIRCULATION_INTERVAL_OUT, output_dir + "circulation_interval_"+base_filename
+                                                },
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
 
     for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
@@ -391,6 +397,7 @@ int main(){
     vector<double> first_infections_per_year; //vector for calculating first infections per year
     vector<double> histogramFirstInf(1000,0); //vector for counting number of first infections per year
     vector<double> time_at_first_inf;       //time at first infection vector
+    vector<double> circInt;                 //used to create circulation intervals -- elements are actual time points
 
     //int seed = 20;
     //mt19937 gen(seed);
@@ -419,6 +426,8 @@ int main(){
         first_infections_per_year.clear();
         time_at_first_inf.clear();
         initialize_rates(S, I1, R, P, Ir);
+        circInt.clear();
+        circInt.push_back(0);
 
         //run the simulation for 1 mill steps
         for(int j=0;j<1e8;++j){
@@ -439,6 +448,7 @@ int main(){
                         double rr = unifdis(gen);
                         if(rr<(PIR*DET_RATE)){
                             countPIR++;
+                            circInt.push_back(time);
                             //if(countPIR > 1){ //comment out to calculate Eichner & Dietz statistic
                                 pCaseDetection.push_back(time-tsc);
                                 //tsc=time;
@@ -479,15 +489,15 @@ int main(){
                 output_streams[P_OUT]  << P  << SEP;
                 output_streams[IR_OUT] << Ir << SEP;
                 output_streams[TIME_OUT] << current_day << SEP;
-                //output_streams[TIME_OUT] << time    << SEP;
                 day_ctr++;
             }
 
             //stopping condition
-            if((time >= 10) and (I1+Ir)==0){
+            if((I1+Ir)==0){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
                 pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
+                circInt.push_back(time);
                 for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
                     output_streams[FIRST_INF_EVENT_TIMES_OUT]<<time_at_first_inf[i];
                     if(i < time_at_first_inf.size() - 1){
@@ -495,6 +505,13 @@ int main(){
                     }
                 }
                 output_streams[FIRST_INF_EVENT_TIMES_OUT] <<"\n";
+                for(unsigned int i = 0; i < circInt.size(); i++){
+                    output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
+                    if(i < circInt.size() - 1){
+                        output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
+                    }
+                }
+                output_streams[CIRCULATION_INTERVAL_OUT] <<"\n";
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
@@ -534,7 +551,6 @@ int main(){
                 output_streams[P_OUT] << P << " \n ";
                 output_streams[IR_OUT] << Ir << " \n ";
                 output_streams[TIME_OUT] << day_ctr << " \n";
-                //output_streams[TIME_OUT] << time << " \n";
                 break;
             }
         }
