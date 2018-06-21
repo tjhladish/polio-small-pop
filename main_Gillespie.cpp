@@ -342,11 +342,11 @@ vector<double> initialize_compartments() {
     }
 
     assert(num_dimensions==5);
-    vector<double> compartments =   {gsl_vector_get(workspace_F->x,0),
-                                     gsl_vector_get(workspace_F->x,1),
-                                     gsl_vector_get(workspace_F->x,2),
-                                     gsl_vector_get(workspace_F->x,3),
-                                     gsl_vector_get(workspace_F->x,4)};
+    vector<double> compartments = {gsl_vector_get(workspace_F->x,S_STATE),
+                                   gsl_vector_get(workspace_F->x,I1_STATE),
+                                   gsl_vector_get(workspace_F->x,R_STATE),
+                                   gsl_vector_get(workspace_F->x,P_STATE),
+                                   gsl_vector_get(workspace_F->x,IR_STATE)};
 
     gsl_multiroot_fsolver_free(workspace_F);
 
@@ -366,14 +366,10 @@ void output_results(vector<stringstream> &output_streams) {
                                                 {R_OUT,               output_dir + "R_"+ base_filename                    },
                                                 {P_OUT,               output_dir + "P_"+ base_filename                    },
                                                 {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
-                                                {TIME_OUT,            output_dir + "time_N_" + base_filename
-                                                    },
-                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename
-                                                },
-                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename
-                                                },
-                                                {CIRCULATION_INTERVAL_OUT, output_dir + "circulation_interval_"+base_filename
-                                                },
+                                                {TIME_OUT,            output_dir + "time_"+ base_filename                 },
+                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename },
+                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename},
+                                                {CIRCULATION_INTERVAL_OUT, output_dir + "circulation_interval_"+base_filename },
                                                 {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
 
     for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
