@@ -358,19 +358,21 @@ vector<double> initialize_compartments() {
 void output_results(vector<stringstream> &output_streams) {
 
     string base_filename = to_string(TOT)+",beta_"+to_string(BETA)+",detect_rate_"+to_string(DET_RATE)+"rho_"+to_string(RHO)+ ext;
-    map<OutputType,string> output_filenames = { {PCASE_INTERVAL_OUT,  output_dir + "time_between_pcases_N_"+ base_filename},
-                                                {PCASE_INCIDENCE_OUT, output_dir + "num_p_cases_N_"+ base_filename        },
-                                                {EXTINCTION_TIME_OUT, output_dir + "TTE_N_"+ base_filename                },
-                                                {S_OUT,               output_dir + "S_"+ base_filename                    },
-                                                {I1_OUT,              output_dir + "I1_"+ base_filename                   },
-                                                {R_OUT,               output_dir + "R_"+ base_filename                    },
-                                                {P_OUT,               output_dir + "P_"+ base_filename                    },
-                                                {IR_OUT,              output_dir + "Ir_"+ base_filename                   },
-                                                {TIME_OUT,            output_dir + "time_"+ base_filename                 },
-                                                {FIRST_INF_EVENT_TIMES_OUT, output_dir + "first_inf_event_times_"+ base_filename },
-                                                {FIRST_INF_PER_YEAR_OUT, output_dir + "first_inf_per_year_" + base_filename},
-                                                {CIRCULATION_INTERVAL_OUT, output_dir + "circulation_interval_"+base_filename },
-                                                {PCASE_TALLY_OUT,     output_dir + "pCases_per_year_" + base_filename     }};
+    vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
+
+    output_filenames[PCASE_INTERVAL_OUT       ] = output_dir + "time_between_pcases_N_"+ base_filename;
+    output_filenames[PCASE_INCIDENCE_OUT      ] = output_dir + "num_p_cases_N_"+ base_filename;
+    output_filenames[EXTINCTION_TIME_OUT      ] = output_dir + "TTE_N_"+ base_filename;
+    output_filenames[S_OUT                    ] = output_dir + "S_"+ base_filename;
+    output_filenames[I1_OUT                   ] = output_dir + "I1_"+ base_filename;
+    output_filenames[R_OUT                    ] = output_dir + "R_"+ base_filename;
+    output_filenames[P_OUT                    ] = output_dir + "P_"+ base_filename;
+    output_filenames[IR_OUT                   ] = output_dir + "Ir_"+ base_filename;
+    output_filenames[TIME_OUT                 ] = output_dir + "time_"+ base_filename;
+    output_filenames[FIRST_INF_EVENT_TIMES_OUT] = output_dir + "first_inf_event_times_"+ base_filename;
+    output_filenames[FIRST_INF_PER_YEAR_OUT   ] = output_dir + "first_inf_per_year_" + base_filename;
+    output_filenames[CIRCULATION_INTERVAL_OUT ] = output_dir + "circulation_interval_"+base_filename;
+    output_filenames[PCASE_TALLY_OUT          ] = output_dir + "pCases_per_year_" + base_filename;
 
     for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
         const OutputType ot = (OutputType) ot_idx;
