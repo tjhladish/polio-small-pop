@@ -502,14 +502,14 @@ int main(){
                         output_streams[FIRST_INF_EVENT_TIMES_OUT] << SEP;
                     }
                 }
-                output_streams[FIRST_INF_EVENT_TIMES_OUT] <<"\n";
+                output_streams[FIRST_INF_EVENT_TIMES_OUT] << endl;
                 for(unsigned int i = 0; i < circInt.size(); i++){
                     output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
                     if(i < circInt.size() - 1){
                         output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
                     }
                 }
-                output_streams[CIRCULATION_INTERVAL_OUT] <<"\n";
+                output_streams[CIRCULATION_INTERVAL_OUT] << endl;
                 const double fractional_year = time - (int) time;
                 if (fractional_year > 0) {
                     pCasesPerYear.resize((int) time + 1, 0);
@@ -522,7 +522,7 @@ int main(){
                         output_streams[FIRST_INF_PER_YEAR_OUT] << SEP;
                     }
                 }
-                output_streams[FIRST_INF_PER_YEAR_OUT]<<"\n";
+                output_streams[FIRST_INF_PER_YEAR_OUT] << endl;
                 if (time != (int) time) {
                     const int last_years_count = pCasesPerYear.back();
 
@@ -542,23 +542,23 @@ int main(){
                         output_streams[PCASE_INTERVAL_OUT] << SEP;
                     }
                 }
-                output_streams[PCASE_INTERVAL_OUT] << "\n";
-                output_streams[S_OUT] << S <<"\n";
-                output_streams[I1_OUT] << I1 << " \n ";
-                output_streams[R_OUT] << R << " \n ";
-                output_streams[P_OUT] << P << " \n ";
-                output_streams[IR_OUT] << Ir << " \n ";
-                output_streams[TIME_OUT] << day_ctr << " \n";
+                output_streams[PCASE_INTERVAL_OUT] << endl;
+                output_streams[S_OUT] << S << endl;
+                output_streams[I1_OUT] << I1 << endl;
+                output_streams[R_OUT] << R << endl;
+                output_streams[P_OUT] << P << endl;
+                output_streams[IR_OUT] << Ir << endl;
+                output_streams[TIME_OUT] << day_ctr << endl;
                 break;
             }
         }
 
     }
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
-        output_streams[PCASE_INCIDENCE_OUT] <<totalParalyticCases[i]<<"\n";
+        output_streams[PCASE_INCIDENCE_OUT] <<totalParalyticCases[i] << endl;
     }
     for (unsigned int i = 0; i < TTE.size(); i++) {
-        output_streams[EXTINCTION_TIME_OUT] <<TTE[i]<<"\n";
+        output_streams[EXTINCTION_TIME_OUT] << TTE[i] << endl;
     }
     output_results(output_streams);
     return 0;
