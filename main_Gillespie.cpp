@@ -23,7 +23,7 @@ string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims 
 string ext = "_ES_stat_multinomial_extinct_test.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
-const string SEP = " "; // output separator--was ", "
+const string SEP = ","; // output separator--was ", "
 
 //fast waning parameters:
 //kappa = 0.4179
@@ -72,7 +72,7 @@ enum EventType {FIRST_INFECTION_EVENT,
 
 vector<double> event_rates(NUM_OF_EVENT_TYPES, 0.0);
 
-enum OutputType {PCASE_INTERVAL_OUT,
+enum OutputType {PCASE_EVENT_OUT,
                  PCASE_INCIDENCE_OUT,
                  EXTINCTION_TIME_OUT,
                  S_OUT,
@@ -80,6 +80,11 @@ enum OutputType {PCASE_INTERVAL_OUT,
                  R_OUT,
                  P_OUT,
                  IR_OUT,
+                 S_AT_PCASE_OUT,
+                 I1_AT_PCASE_OUT,
+                 R_AT_PCASE_OUT,
+                 P_AT_PCASE_OUT,
+                 IR_AT_PCASE_OUT,
                  TIME_OUT,
                  PCASE_TALLY_OUT,
                  FIRST_INF_PER_YEAR_OUT,
@@ -360,7 +365,7 @@ void output_results(vector<stringstream> &output_streams) {
     string base_filename = to_string(TOT)+",beta_"+to_string(BETA)+",detect_rate_"+to_string(DET_RATE)+"rho_"+to_string(RHO)+ ext;
     vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
 
-    output_filenames[PCASE_INTERVAL_OUT       ] = output_dir + "time_between_pcases_N_"+ base_filename;
+    output_filenames[PCASE_EVENT_OUT          ] = output_dir + "time_of_pcases_N_"+ base_filename;
     output_filenames[PCASE_INCIDENCE_OUT      ] = output_dir + "num_p_cases_N_"+ base_filename;
     output_filenames[EXTINCTION_TIME_OUT      ] = output_dir + "TTE_N_"+ base_filename;
     output_filenames[S_OUT                    ] = output_dir + "S_"+ base_filename;
@@ -368,6 +373,11 @@ void output_results(vector<stringstream> &output_streams) {
     output_filenames[R_OUT                    ] = output_dir + "R_"+ base_filename;
     output_filenames[P_OUT                    ] = output_dir + "P_"+ base_filename;
     output_filenames[IR_OUT                   ] = output_dir + "Ir_"+ base_filename;
+    output_filenames[S_AT_PCASE_OUT           ] = output_dir + "S_at_pcase_"+ base_filename;
+    output_filenames[I1_AT_PCASE_OUT          ] = output_dir + "I1_at_pcase_"+ base_filename;
+    output_filenames[R_AT_PCASE_OUT           ] = output_dir + "R_at_pcase_"+ base_filename;
+    output_filenames[P_AT_PCASE_OUT           ] = output_dir + "P_at_pcase_"+ base_filename;
+    output_filenames[IR_AT_PCASE_OUT          ] = output_dir + "Ir_at_pcase_"+ base_filename;
     output_filenames[TIME_OUT                 ] = output_dir + "time_"+ base_filename;
     output_filenames[FIRST_INF_EVENT_TIMES_OUT] = output_dir + "first_inf_event_times_"+ base_filename;
     output_filenames[FIRST_INF_PER_YEAR_OUT   ] = output_dir + "first_inf_per_year_" + base_filename;
@@ -388,7 +398,7 @@ int main(){
 
     const int numSims=10000;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector -- use to get numerator for Eichner & Dietz stat
-    vector<double> pCaseDetection;          // time between paralytic cases vector (also use for case-free periods)
+    vector<double> pCaseDetection;          // time of paralytic cases vector (also use for case-free periods)
     vector<double> totalParalyticCases;     // vector for num paralytic cases
     vector<double> pCasesPerYear;           // vector for paralytic cases per year
     vector<double> histogramCases(50,0);    // vector for counting number of cases per year
@@ -448,7 +458,7 @@ int main(){
                             countPIR++;
                             circInt.push_back(time);
                             //if(countPIR > 1){ //comment out to calculate Eichner & Dietz statistic
-                                pCaseDetection.push_back(time-tsc);
+                                pCaseDetection.push_back(time);
                                 //tsc=time;
                             //}
                             if((unsigned) year >= pCasesPerYear.size()){
@@ -456,6 +466,11 @@ int main(){
                             }
                             pCasesPerYear[year]++;
                             tsc=time;
+                            output_streams[S_AT_PCASE_OUT]  << S  << SEP;
+                            output_streams[I1_AT_PCASE_OUT] << I1 << SEP;
+                            output_streams[R_AT_PCASE_OUT]  << R  << SEP;
+                            output_streams[P_AT_PCASE_OUT]  << P  << SEP;
+                            output_streams[IR_AT_PCASE_OUT] << Ir << SEP;
                         }
                     }
                     break;
@@ -479,6 +494,7 @@ int main(){
             exponential_distribution<>rng(totalRate);
             time+=rng(gen);
 
+            //output compartment counts each day
             const int current_day = (int) (time*365);
             while (current_day > day_ctr) {
                 output_streams[S_OUT]  << S  << SEP;
@@ -494,7 +510,12 @@ int main(){
             if((I1+Ir)==0){
                 totalParalyticCases.push_back(countPIR);
                 TTE.push_back(time);
-                pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
+                output_streams[S_AT_PCASE_OUT]  << endl;
+                output_streams[I1_AT_PCASE_OUT] << endl;
+                output_streams[R_AT_PCASE_OUT]  << endl;
+                output_streams[P_AT_PCASE_OUT]  << endl;
+                output_streams[IR_AT_PCASE_OUT] << endl;
+                //pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
                 circInt.push_back(time);
                 for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
                     output_streams[FIRST_INF_EVENT_TIMES_OUT]<<time_at_first_inf[i];
@@ -537,12 +558,12 @@ int main(){
                     for(double ptally: histogramCases){ output_streams[PCASE_TALLY_OUT] << ptally << SEP;} output_streams[PCASE_TALLY_OUT] << endl;
                 }
                 for(unsigned int i = 0; i < pCaseDetection.size(); i++){
-                    output_streams[PCASE_INTERVAL_OUT] << pCaseDetection[i];
+                    output_streams[PCASE_EVENT_OUT] << pCaseDetection[i];
                     if(i < pCaseDetection.size()-1){
-                        output_streams[PCASE_INTERVAL_OUT] << SEP;
+                        output_streams[PCASE_EVENT_OUT] << SEP;
                     }
                 }
-                output_streams[PCASE_INTERVAL_OUT] << endl;
+                output_streams[PCASE_EVENT_OUT] << endl;
                 output_streams[S_OUT] << S << endl;
                 output_streams[I1_OUT] << I1 << endl;
                 output_streams[R_OUT] << R << endl;
