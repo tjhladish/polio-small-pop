@@ -214,14 +214,25 @@ void initialize_rates (const double S, const double I1, const double R, const do
     event_rates[i][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1; //natural death of first infected
 }
 
-vector<Event> sample_event(mt19937& gen, double& totalRate, const vector<double> S, const vector<double> I1, const vector<double> R, const vector<double> P, const vector<double> Ir) {
+vector<Event> sample_event(mt19937& gen, double& totalRate, const vector<double> S, const vector<double> I1, const vector<double> R, const vector<double> P, const vector<double> Ir,const int prevVillage, const double time) {
     totalRate = 0.0;
+    vector<double> rateVec(numVillages);
     vector<Event> eventOccurrence;
     Event sampleEvent;
     for(int i = 0; i < numVillages; i++){
-        for (auto rate: event_rates[i]) totalRate += rate;
+        if(i == prevVillage or time==0){//recalculate rates if something changed or at beginning of new sim
+            rateVec[i] = 0;
+            for(int k = 0; k < event_rates[i].size();k++){
+                rateVec[i] += event_rates[i][k];
+            }
+        }
     }
-
+    /*for(int i = 0; i < numVillages; i++){
+        for (auto rate: event_rates[i]) totalRate += rate;
+    }*/
+    for(int i = 0; i < rateVec.size();i++){
+        totalRate += rateVec[i];
+    }
     //generate unifrn
     double ran=totalRate*unifdis(gen);
     
@@ -384,6 +395,7 @@ int main(){
     //The Simulation
     for(int i = 0; i < numSims; i++){
         double time = 0;
+        int prevVillage = std::numeric_limits<int>::max();//initialize to max b/c village hasn't been chosen yet
         //set initial values for each village using multinomial dist
         for(int i = 0; i < numVillages; i++){
             initialValues[i] = multinomial_Compartments(compartments[i].size(),compartments[i],i);
@@ -407,10 +419,11 @@ int main(){
         for(int j = 0; j < 1e8; j++){
             double totalRate = 0;
             
-            vector<Event> test = sample_event(gen, totalRate, S, I1, R, P, Ir);
+            vector<Event> test = sample_event(gen, totalRate, S, I1, R, P, Ir, prevVillage, time);
             
             EventType event_type = test[0].event;
             const int chosenVillage = test[0].village;
+            prevVillage = chosenVillage;
 
             switch(event_type){
                 case FIRST_INFECTION_EVENT: process_first_infection_event(S, I1, R, P, Ir, chosenVillage);
@@ -442,8 +455,8 @@ int main(){
             time+=rng(gen);
 
             //stopping condition
-            if(time > 2){
-            //if((I1[0]+Ir[0])==0){
+            //if(time > 2){
+            if((I1[0]+Ir[0])==0){
                 for(int i = 0; i < numVillages; i++){
                     cout<<S[i]<<"\n";
                     cout<<I1[i]<<"\n";
