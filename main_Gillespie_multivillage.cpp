@@ -15,9 +15,14 @@
 #include <sstream>
 #include <map>
 #include <sys/time.h>
+#include <algorithm>
 
 
 using namespace std;
+
+string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
+string ext = "_metapop.csv";
+const string SEP = ","; // output separator--was ", "
 
 int villageCounter = 0;
 uniform_real_distribution<> unifdis(0.0, 1.0);
@@ -42,6 +47,11 @@ enum EventType {FIRST_INFECTION_EVENT,
     DEATH_FROM_FIRST_INFECTION_EVENT,
     NUM_OF_EVENT_TYPES};
 
+enum OutputType{
+    CIRCULATION_INTERVAL_OUT,
+    NUM_OF_OUTPUT_TYPES
+};
+
 
 struct Params{
     double recovery;
@@ -62,7 +72,7 @@ const double KAPPA              = 0.4179; //waning depth parameter
 const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
-const int    numVillages        = 2;                   //total number of villages under consideration
+const int    numVillages        = 1;                   //total number of villages under consideration
 const vector<double> TOT        (numVillages,10000);  //total population size
 const double RECOVERY           = 13;    //recovery rate (individuals/year)
 const double BETA               = 135;   //contact rate (individuals/year)
@@ -72,6 +82,8 @@ const double PIR                = 0.005;            //type 1 paralysis rate (nat
 const double DET_RATE           = 1.0;
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
+
+vector<pair<double,double>> location;
 
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     Params * params = (Params *)p;
@@ -200,7 +212,15 @@ bool choose_event(double &ran, const double p) {
     }
 }
 
-void initialize_rates (const double S, const double I1, const double R, const double P, const double Ir, const int i) {
+void initial_location(mt19937& gen, vector<pair<double,double>>location){
+    for(int i = 0; i < numVillages; i++){
+        double x_coord = unifdis(gen);
+        double y_coord = unifdis(gen);
+        location.push_back(make_pair(x_coord,y_coord));
+    }
+}
+
+void initialize_rates(const double S, const double I1, const double R, const double P, const double Ir, const int i) {
     event_rates[i][FIRST_INFECTION_EVENT]                = BETA*S/TOT[i]*(I1+ KAPPA*Ir); //first infection event
     event_rates[i][REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT[i]*(I1+ KAPPA*Ir); //reinfection event
     event_rates[i][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1; //first infected revovery event
@@ -222,7 +242,7 @@ vector<Event> sample_event(mt19937& gen, double& totalRate, const vector<double>
     for(int i = 0; i < numVillages; i++){
         if(i == prevVillage or time==0){//recalculate rates if something changed or at beginning of new sim
             rateVec[i] = 0;
-            for(int k = 0; k < event_rates[i].size();k++){
+            for(unsigned int k = 0; k < event_rates[i].size();k++){
                 rateVec[i] += event_rates[i][k];
             }
         }
@@ -230,7 +250,7 @@ vector<Event> sample_event(mt19937& gen, double& totalRate, const vector<double>
     /*for(int i = 0; i < numVillages; i++){
         for (auto rate: event_rates[i]) totalRate += rate;
     }*/
-    for(int i = 0; i < rateVec.size();i++){
+    for(unsigned int i = 0; i < rateVec.size();i++){
         totalRate += rateVec[i];
     }
     //generate unifrn
@@ -363,7 +383,26 @@ inline void process_death_from_first_infection_event(const vector<double> S, vec
     event_rates[j][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[j];
 }
 
+void output_results(vector<stringstream> &output_streams) {
+    
+    //string base_filename = to_string(TOT)+",beta_"+to_string(BETA)+",detect_rate_"+to_string(DET_RATE)+"rho_"+to_string(RHO)+ ext;
+    string base_filename = "test" + ext;
+    vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
+    
+    output_filenames[CIRCULATION_INTERVAL_OUT ] = output_dir + "circulation_interval_"+base_filename;
+    
+    for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
+        const OutputType ot = (OutputType) ot_idx;
+        ofstream ofs;
+        ofs.open(output_filenames[ot]);
+        ofs << output_streams[ot].rdbuf();
+        ofs.close();
+    }
+}
+
 int main(){
+    
+    vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
     
     //initialize size of vector of vector of compartments
     vector<vector<double>> compartments(numVillages);
@@ -378,13 +417,16 @@ int main(){
     vector<double> P(numVillages);
     vector<double> Ir(numVillages);
     
+    
+    vector<double> circInt; //used to create circulation intervals -- elements are actual time points
+    
     //int seed = 20;
     //mt19937 gen(seed);
     
     random_device rd;                       // generates a random real number for the seed
     mt19937 gen(rd());                      // random number generator
     
-    const int numSims = 1;
+    const int numSims = 10000;
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
@@ -395,6 +437,8 @@ int main(){
     //The Simulation
     for(int i = 0; i < numSims; i++){
         double time = 0;
+        circInt.clear();
+        circInt.push_back(0);
         int prevVillage = std::numeric_limits<int>::max();//initialize to max b/c village hasn't been chosen yet
         //set initial values for each village using multinomial dist
         for(int i = 0; i < numVillages; i++){
@@ -427,6 +471,12 @@ int main(){
 
             switch(event_type){
                 case FIRST_INFECTION_EVENT: process_first_infection_event(S, I1, R, P, Ir, chosenVillage);
+                {
+                    double rr = unifdis(gen);
+                    if(rr<(PIR*DET_RATE)){
+                        circInt.push_back(time);
+                    }
+                }
                     break;
                 case REINFECTION_EVENT:                     process_reinfection_event(S, I1, R, P, Ir, chosenVillage);
                     break;
@@ -453,21 +503,24 @@ int main(){
             //generate the time at which the event occurs
             exponential_distribution<>rng(totalRate);
             time+=rng(gen);
+            
+            bool zero_I1 = all_of(I1.begin(),I1.end(),[](int i){return i==0;});
+            bool zero_Ir = all_of(Ir.begin(),Ir.end(),[](int i){return i==0;});
 
             //stopping condition
-            //if(time > 2){
-            if((I1[0]+Ir[0])==0){
-                for(int i = 0; i < numVillages; i++){
-                    cout<<S[i]<<"\n";
-                    cout<<I1[i]<<"\n";
-                    cout<<R[i]<<"\n";
-                    cout<<P[i]<<"\n";
-                    cout<<Ir[i]<<"\n";
+            if(zero_I1 and zero_Ir){
+                circInt.push_back(time);
+                for(unsigned int i = 0; i < circInt.size(); i++){
+                    output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
+                    if(i < circInt.size() - 1){
+                        output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
+                    }
                 }
+                output_streams[CIRCULATION_INTERVAL_OUT] << endl;
                 break;
             }
         }
     }
-    
+    output_results(output_streams);
     return 0;
 }
