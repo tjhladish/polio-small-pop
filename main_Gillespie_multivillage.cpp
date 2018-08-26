@@ -21,7 +21,7 @@
 using namespace std;
 
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_metapop_num_vill_2.csv";
+string ext = "_metapop_num_vill_40.csv";
 const string SEP = ","; // output separator--was ", "
 
 int villageCounter = 0;
@@ -39,13 +39,13 @@ enum EventType {
     REINFECTION_EVENT,
     RECOVERY_FROM_FIRST_INFECTION_EVENT,
     RECOVERY_FROM_REINFECTION_EVENT,
+    WANING_EVENT,
     BIRTH_EVENT,
     DEATH_FROM_RECOVERED_EVENT,
     DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT,
     DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT,
     DEATH_FROM_REINFECTION_EVENT,
     DEATH_FROM_FIRST_INFECTION_EVENT,
-    WANING_EVENT,
     NUM_OF_EVENT_TYPES};
 
 enum OutputType{
@@ -73,7 +73,7 @@ const double KAPPA              = 0.4179; //waning depth parameter
 const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
-const int    numVillages        = 2;                   //total number of villages under consideration
+const int    numVillages        = 40;                   //total number of villages under consideration
 const vector<double> TOT        (numVillages,10000);  //total population size
 const double RECOVERY           = 13;    //recovery rate (individuals/year)
 const double BETA               = 135;   //contact rate (individuals/year)
@@ -283,12 +283,6 @@ inline void process_first_infection_event(vector<double> &S, vector<double> &I1,
     event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
     event_rates[j][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[j];
     event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]                  +R[j]+P[j]+Ir[j]) : 0;
-    /*cout<<"S "<<S[j]<<"\n";
-    cout<<"I1 "<<I1[j]<<"\n";
-    cout<<"R "<<R[j]<<"\n";
-    cout<<"P "<<P[j]<<"\n";
-    cout<<"Ir "<<Ir[j]<<"\n";
-    cout<<"tot "<<TOT[j]<<"\n";*/
     event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
     event_rates[j][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[j];
 }
@@ -422,6 +416,9 @@ int main(){
     //initialize size of vector of vector of initial values
     vector<vector<int>> initialValues(numVillages);
     
+    //initialize size of total rates for each village
+    vector<double> rateVec(numVillages);
+    
     //initialize size of vectors for individual compartments
     vector<double> S(numVillages);
     vector<double> I1(numVillages);
@@ -438,7 +435,7 @@ int main(){
     random_device rd;                       // generates a random real number for the seed
     mt19937 gen(rd());                      // random number generator
     
-    const int numSims = 10000;
+    const int numSims = 1;
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
@@ -448,7 +445,6 @@ int main(){
 
     //The Simulation
     for(int i = 0; i < numSims; i++){
-        vector<double> rateVec(numVillages);
         double time = 0;
         circInt.clear();
         circInt.push_back(0);
@@ -523,7 +519,7 @@ int main(){
             bool zero_Ir = all_of(Ir.begin(),Ir.end(),[](int i){return i==0;});
 
             //stopping condition
-            if(zero_I1 and zero_Ir){
+            if((zero_I1 and zero_Ir)){
                 circInt.push_back(time);
                 for(unsigned int i = 0; i < circInt.size(); i++){
                     output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
