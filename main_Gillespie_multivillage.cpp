@@ -21,7 +21,7 @@
 using namespace std;
 
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_metapop_num_vill_40.csv";
+string ext = "_metapop_code_test.csv";
 const string SEP = ","; // output separator--was ", "
 
 int villageCounter = 0;
@@ -73,7 +73,7 @@ const double KAPPA              = 0.4179; //waning depth parameter
 const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
-const int    numVillages        = 40;                   //total number of villages under consideration
+const int    numVillages        = 20;                   //total number of villages under consideration
 const vector<double> TOT        (numVillages,10000);  //total population size
 const double RECOVERY           = 13;    //recovery rate (individuals/year)
 const double BETA               = 135;   //contact rate (individuals/year)
@@ -429,13 +429,15 @@ int main(){
     
     vector<double> circInt; //used to create circulation intervals -- elements are actual time points
     
-    //int seed = 10;
+    vector<vector<double>> circulationInts(numVillages); //test vector for circulation intervals for each village
+    
+    //int seed = 20;
     //mt19937 gen(seed);
     
     random_device rd;                       // generates a random real number for the seed
     mt19937 gen(rd());                      // random number generator
     
-    const int numSims = 1;
+    const int numSims = 10000;
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
@@ -446,8 +448,13 @@ int main(){
     //The Simulation
     for(int i = 0; i < numSims; i++){
         double time = 0;
-        circInt.clear();
         circInt.push_back(0);
+        
+        circulationInts.clear();
+        for(int i = 0; i < numVillages; i++){
+            circulationInts[i].push_back(0);//first time for each vector for each village is 0
+        }
+        
         int prevVillage = numeric_limits<int>::max();//initialize to max b/c village hasn't been chosen yet
         //set initial values for each village using multinomial dist
         for(int i = 0; i < numVillages; i++){
@@ -485,6 +492,17 @@ int main(){
                     double rr = unifdis(gen);
                     if(rr<(PIR*DET_RATE)){
                         circInt.push_back(time);
+                        circulationInts[chosenVillage].push_back(time);
+                        /*for(int i = 0; i < circulationInts[chosenVillage].size();i++){
+                            cout<<"circulationInts["<<i<<"] "<<circulationInts[chosenVillage][i]<<"\n";
+                        }
+                        int nonChosenVillage = 0;
+                        if(nonChosenVillage == chosenVillage){
+                            nonChosenVillage = 1;
+                        }
+                        for(int j = 0; j < circulationInts[nonChosenVillage].size();j++){
+                            cout<<"non chosen circulationInts["<<j<<"] "<<circulationInts[nonChosenVillage][j]<<"\n";
+                        }*/
                     }
                 }
                     break;
@@ -521,13 +539,41 @@ int main(){
             //stopping condition
             if((zero_I1 and zero_Ir)){
                 circInt.push_back(time);
-                for(unsigned int i = 0; i < circInt.size(); i++){
+                //cout<<"time "<<time<<"\n";
+                for(unsigned int i = 0; i < numVillages; i++){
+                    circulationInts[i].push_back(time);
+                }
+                /*for(int i = 0; i < 2; i++){
+                    for(int j = 0; j < circulationInts[i].size();j++){
+                        cout<<"circulation ints ["<<i<<j<<"] "<<circulationInts[i][j]<<"\n";
+                    }
+                }*/
+                
+                for(unsigned int i = 0; i < numVillages;i++){
+                    //cout<<"circulationInts["<<i<<"] size "<<circulationInts[i].size()<<"\n";
+                    for(unsigned int j = 0; j < circulationInts[i].size();j++){
+                        //cout<<"circulationInt["<<i<<"]["<<j<<"] "<<circulationInts[i][j]<<"\n";
+                        output_streams[CIRCULATION_INTERVAL_OUT]<<circulationInts[i][j];
+                        if(j < circulationInts[i].size() - 1){
+                            output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
+                        }
+                    }
+                    output_streams[CIRCULATION_INTERVAL_OUT] << endl;
+                }
+                output_streams[CIRCULATION_INTERVAL_OUT] << endl;
+                /*for(unsigned int i = 0; i < circInt.size(); i++){
                     output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
                     if(i < circInt.size() - 1){
                         output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
                     }
+                }*/
+                //clear vector when done
+                for(int i = 0; i < numVillages; i++){
+                    for(unsigned int j = 0; j < circulationInts[i].size();j++){
+                        circulationInts[i].clear();
+                    }
                 }
-                output_streams[CIRCULATION_INTERVAL_OUT] << endl;
+                
                 break;
             }
         }
