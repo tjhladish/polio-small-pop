@@ -80,15 +80,16 @@ const double KAPPA              = 0.4179; //waning depth parameter
 const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
-const int    numVillages        = 10;                   //total number of villages under consideration
-const vector<double> TOT        (numVillages,3500);  //total population size
+const int    numVillages        = 3;                   //total number of villages under consideration
+//const vector<double> TOT        (numVillages,10000);  //total population size
+const vector<double> TOT = {10000,5000,5000};
 const double RECOVERY           = 13;    //recovery rate (individuals/year)
 const double BETA               = 135;   //contact rate (individuals/year)
 const double BIRTH              = 0.02; //birth rate (per year)
 const double DEATH              = 0.02; //death rate (per year)
 const double PIR                = 0.005;            //type 1 paralysis rate (naturally occurring cases)
 const double DET_RATE           = 1.0;
-const double MOVE_RATE          = 0.1; //needs to be updated at some point!!!!
+const double MOVE_RATE          = 0.5; //needs to be updated at some point!!!!
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
 
@@ -498,8 +499,12 @@ inline void process_movement_event(vector<double> &S, vector<double> &I1, vector
 
 void output_results(vector<stringstream> &output_streams) {
     
-    //may need to change base_filename with multiple villages of varied size!!!
-    string base_filename = to_string(TOT[0])+",beta_"+to_string(BETA)+",detect_rate_"+to_string(DET_RATE)+"rho_"+to_string(RHO)+ "numVillages_"+to_string(numVillages) + ext;
+    string numInEachVil = "";
+    for(unsigned int i = 0; i < numVillages; i++){
+        numInEachVil += to_string(int(TOT[i]));
+    }
+    
+    string base_filename = numInEachVil+",beta_"+to_string(int(BETA))+",detect_rate_"+to_string(float(DET_RATE))+"rho_"+to_string(float(RHO))+ "numVillages_"+to_string(numVillages) + "migRate_"+to_string(float(MOVE_RATE)) + ext;
     //string base_filename = "test" + ext;
     vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
     
