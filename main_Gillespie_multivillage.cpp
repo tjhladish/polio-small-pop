@@ -68,7 +68,7 @@ struct Params{
     double death;
     double kappa;
     double rho;
-    vector<double> Tot;
+    vector<double> Population;
 };
 
 struct Event{ //keeps track of which events are occurring to which village
@@ -80,16 +80,19 @@ const double KAPPA              = 0.4179; //waning depth parameter
 const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
-const int    numVillages        = 3;                   //total number of villages under consideration
 //const vector<double> TOT        (numVillages,10000);  //total population size
-const vector<double> TOT = {10000,5000,5000};
-const double RECOVERY           = 13;    //recovery rate (individuals/year)
+const vector<double> TOT = {5000,5000,5000,5000};
+const int numVillages = TOT.size(); //total number of villages under consideration
+const int numDaysToRecover      = 28;
+const double RECOVERY           = 365/numDaysToRecover;    //recovery rate (/year)
 const double BETA               = 135;   //contact rate (individuals/year)
-const double BIRTH              = 0.02; //birth rate (per year)
-const double DEATH              = 0.02; //death rate (per year)
+const double lifespan           = 50;
+const double BIRTH              = 1/lifespan; //birth rate (per year)
+const double DEATH              = 1/lifespan; //death rate (per year)
 const double PIR                = 0.005;            //type 1 paralysis rate (naturally occurring cases)
 const double DET_RATE           = 1.0;
-const double MOVE_RATE          = 0.5; //needs to be updated at some point!!!!
+const double expectedTimeUntilMove  = 2; //years
+const double MOVE_RATE          = 1/expectedTimeUntilMove; //needs to be updated at some point!!!! (/person/year)
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
 
@@ -103,25 +106,32 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double death = (params->death);
     const double kappa = (params->kappa);
     const double rho = (params->rho);
-    const double Tot = (params->Tot[villageCounter]);
+    const double Population = (params->Population[villageCounter]);
     const double S  = gsl_vector_get(x,S_STATE);
     const double I1 = gsl_vector_get(x,I1_STATE);
     const double R  = gsl_vector_get(x,R_STATE);
     const double P  = gsl_vector_get(x,P_STATE);
     const double Ir = gsl_vector_get(x,IR_STATE);
     
-    gsl_vector_set (f, S_STATE,  birth*Tot - (beta*S*(I1+kappa*Ir))/Tot - death*S);
-    gsl_vector_set (f, I1_STATE, (beta*S*(I1+kappa*Ir))/Tot-recovery*I1-death*I1);
+    gsl_vector_set (f, S_STATE,  birth*Population - ((beta*S*(I1+kappa*Ir))/Population) - death*S);
+    gsl_vector_set (f, I1_STATE, ((beta*S*(I1+kappa*Ir))/Population)-recovery*I1-death*I1);
     gsl_vector_set (f, R_STATE,  recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
-    gsl_vector_set (f, P_STATE,  rho*R - (kappa*beta*P*(I1+kappa*Ir))/Tot - death*P);
-    gsl_vector_set (f, IR_STATE, Tot - (S+I1+R+P+Ir));
+    gsl_vector_set (f, P_STATE,  rho*R - ((kappa*beta*P*(I1+kappa*Ir))/Population) - death*P);
+    gsl_vector_set (f, IR_STATE, Population - (S+I1+R+P+Ir));
     
     return GSL_SUCCESS;
 }
 
 vector<double> initialize_compartments() {
     //initial population from equilibrium values
-    Params params = {RECOVERY, BETA, BIRTH, DEATH, KAPPA, RHO, TOT};
+    Params params ={};
+    params.recovery = RECOVERY;
+    params.beta = BETA;
+    params.birth = BIRTH;
+    params.death = DEATH;
+    params.kappa = KAPPA;
+    params.rho = RHO;
+    params.Population = TOT;
     
     int i, times, status;
     gsl_multiroot_function F;
@@ -508,13 +518,13 @@ void output_results(vector<stringstream> &output_streams) {
     //string base_filename = "test" + ext;
     vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
     
-    output_filenames[NON_EXTINCT_VILLAGES     ] = output_dir + "non_extinct_villages_"+base_filename;
+    //output_filenames[NON_EXTINCT_VILLAGES     ] = output_dir + "non_extinct_villages_"+base_filename;
     output_filenames[CIRCULATION_INTERVAL_OUT ] = output_dir + "circulation_interval_"+base_filename;
-    output_filenames[S_OUT                    ] = output_dir + "S_"+ base_filename;
+    /*output_filenames[S_OUT                    ] = output_dir + "S_"+ base_filename;
     output_filenames[I1_OUT                   ] = output_dir + "I1_"+ base_filename;
     output_filenames[R_OUT                    ] = output_dir + "R_"+ base_filename;
     output_filenames[P_OUT                    ] = output_dir + "P_"+ base_filename;
-    output_filenames[IR_OUT                   ] = output_dir + "Ir_"+ base_filename;
+    output_filenames[IR_OUT                   ] = output_dir + "Ir_"+ base_filename;*/
 
     
     for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
@@ -551,17 +561,17 @@ int main(){
     
     vector<vector<double>> circulationInts(numVillages); //test vector for circulation intervals for each village
     
-    vector<pair<double,int>> nonExtinctVillages; //(time,num villages)
+    //vector<pair<double,int>> nonExtinctVillages; //(time,num villages)
     vector<bool> extinct(numVillages);
     int villageInCirc;
     
     uniform_int_distribution<> vilDis(0,(numVillages - 1));
     
-    int seed = 20;
-    mt19937 gen(seed);
+    //int seed = 20;
+    //mt19937 gen(seed);
     
-    //random_device rd;                       // generates a random real number for the seed
-    //mt19937 gen(rd());                      // random number generator
+    random_device rd;                       // generates a random real number for the seed
+    mt19937 gen(rd());                      // random number generator
     
     const int numSims = 10000;
 
@@ -577,7 +587,7 @@ int main(){
         circInt.push_back(0);
         villageInCirc = numVillages;
         
-        nonExtinctVillages.push_back(make_pair(0,villageInCirc));
+        //nonExtinctVillages.push_back(make_pair(0,villageInCirc));
 
         for(int i = 0; i < numVillages; i++){
             circulationInts[i].push_back(0);//first time for each vector for each village is 0
@@ -617,16 +627,6 @@ int main(){
                     if(rr<(PIR*DET_RATE)){
                         circInt.push_back(time);
                         circulationInts[chosenVillage].push_back(time);
-                        /*for(int i = 0; i < circulationInts[chosenVillage].size();i++){
-                            cout<<"circulationInts["<<i<<"] "<<circulationInts[chosenVillage][i]<<"\n";
-                        }
-                        int nonChosenVillage = 0;
-                        if(nonChosenVillage == chosenVillage){
-                            nonChosenVillage = 1;
-                        }
-                        for(int j = 0; j < circulationInts[nonChosenVillage].size();j++){
-                            cout<<"non chosen circulationInts["<<j<<"] "<<circulationInts[nonChosenVillage][j]<<"\n";
-                        }*/
                     }
                 }
                     break;
@@ -669,6 +669,7 @@ int main(){
                     cerr << "ERROR: Unsupported event type" << endl;
                     break;
             }
+
             for(int k = 0; k < numVillages; k++){
                 assert(S[k] >= 0);
                 assert(I1[k] >= 0);
@@ -683,7 +684,7 @@ int main(){
                 if(I1[k]+Ir[k]==0 and extinct[k] == false){
                     villageInCirc--;
                     extinct[k] = true;
-                    nonExtinctVillages.push_back(make_pair(time,villageInCirc));
+                    //nonExtinctVillages.push_back(make_pair(time,villageInCirc));
                     break;
                 }
             }
@@ -702,12 +703,12 @@ int main(){
                         cout<<"circulation ints ["<<i<<j<<"] "<<circulationInts[i][j]<<"\n";
                     }
                 }*/
-                for(unsigned int i = 0; i < nonExtinctVillages.size(); i++){
+                /*for(unsigned int i = 0; i < nonExtinctVillages.size(); i++){
                     output_streams[NON_EXTINCT_VILLAGES] << nonExtinctVillages[i].first;
                     output_streams[NON_EXTINCT_VILLAGES] << SEP;
                     output_streams[NON_EXTINCT_VILLAGES] << nonExtinctVillages[i].second;
                     output_streams[NON_EXTINCT_VILLAGES] << endl;
-                }
+                }*/
                 for(unsigned int i = 0; i < numVillages;i++){
                     //cout<<"circulationInts["<<i<<"] size "<<circulationInts[i].size()<<"\n";
                     for(unsigned int j = 0; j < circulationInts[i].size();j++){
@@ -719,7 +720,7 @@ int main(){
                     }
                     output_streams[CIRCULATION_INTERVAL_OUT] << endl;
                 }
-                for(unsigned int i = 0; i < numVillages; i++){
+                /*for(unsigned int i = 0; i < numVillages; i++){
                     output_streams[S_OUT] << S[i] << SEP;
                     output_streams[I1_OUT] << I1[i] << SEP;
                     output_streams[R_OUT] << R[i] << SEP;
@@ -730,7 +731,7 @@ int main(){
                 output_streams[I1_OUT] << endl;
                 output_streams[R_OUT] << endl;
                 output_streams[P_OUT] << endl;
-                output_streams[IR_OUT] << endl;
+                output_streams[IR_OUT] << endl;*/
                 //output_streams[CIRCULATION_INTERVAL_OUT] << endl;
                 /*for(unsigned int i = 0; i < circInt.size(); i++){
                     output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
@@ -744,11 +745,11 @@ int main(){
                         circulationInts[i].clear();
                     }
                 }
-                nonExtinctVillages.clear();
+                //nonExtinctVillages.clear();
                 break;
             }
         }
     }
-    output_results(output_streams);
+    //output_results(output_streams);
     return 0;
 }
