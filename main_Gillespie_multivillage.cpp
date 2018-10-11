@@ -21,7 +21,7 @@
 using namespace std;
 
 string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_movement_test_const_pop1.csv";
+string ext = "_birth_with_death_test.csv";
 const string SEP = ","; // output separator--was ", "
 
 int villageCounter = 0;
@@ -40,7 +40,7 @@ enum EventType {
     RECOVERY_FROM_FIRST_INFECTION_EVENT,
     RECOVERY_FROM_REINFECTION_EVENT,
     WANING_EVENT,
-    BIRTH_EVENT,
+    //BIRTH_EVENT,
     DEATH_FROM_RECOVERED_EVENT,
     DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT,
     DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT,
@@ -81,7 +81,7 @@ const double RHO                = 0.2; //waning speed parameter
 
 //other parameters
 //const vector<double> TOT        (numVillages,10000);  //total population size
-const vector<double> TOT = {5000,5000,5000,5000};
+const vector<double> TOT = {10000};
 const int numVillages = TOT.size(); //total number of villages under consideration
 const int numDaysToRecover      = 28;
 const double RECOVERY           = 365/numDaysToRecover;    //recovery rate (/year)
@@ -92,7 +92,7 @@ const double DEATH              = 1/lifespan; //death rate (per year)
 const double PIR                = 0.005;            //type 1 paralysis rate (naturally occurring cases)
 const double DET_RATE           = 1.0;
 const double expectedTimeUntilMove  = 2; //years
-const double MOVE_RATE          = 1/expectedTimeUntilMove; //needs to be updated at some point!!!! (/person/year)
+double MOVE_RATE = 1/expectedTimeUntilMove;
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
 
@@ -234,12 +234,12 @@ bool choose_event(double &ran, const double p) {
 }
 
 void initialize_rates(const double S, const double I1, const double R, const double P, const double Ir, const int i) {
-    event_rates[i][FIRST_INFECTION_EVENT]                = BETA*S/TOT[i]*(I1+ KAPPA*Ir); //first infection event
-    event_rates[i][REINFECTION_EVENT]                    = KAPPA*BETA*P/TOT[i]*(I1+ KAPPA*Ir); //reinfection event
+    event_rates[i][FIRST_INFECTION_EVENT]                = BETA*S*(I1+ KAPPA*Ir)/TOT[i]; //first infection event
+    event_rates[i][REINFECTION_EVENT]                    = KAPPA*BETA*P*(I1+ KAPPA*Ir)/TOT[i]; //reinfection event
     event_rates[i][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1; //first infected revovery event
     event_rates[i][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir; //reinfected recovery event
     event_rates[i][WANING_EVENT]                         = RHO*R; //waning event
-    event_rates[i][BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT[i]) ? BIRTH*(S+I1+R+P+Ir) : 0; //birth event
+    //event_rates[i][BIRTH_EVENT]                          = (S+I1+R+P+Ir<TOT[i]) ? BIRTH*(S+I1+R+P+Ir) : 0; //birth event
     event_rates[i][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R; //natural death of fully immune individual
     event_rates[i][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P; //natural death of partially susceptible individual
     event_rates[i][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S; //nautral death of naive susceptible
@@ -292,28 +292,28 @@ void chooseCompartment(int moveInd, vector<double> &S, vector<double> &I1, vecto
             S[fromVil]= --S[fromVil];
             S[toVil] = ++S[toVil];
             //change fromvil rates
-            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
-            event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
+            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
+            //event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
             event_rates[fromVil][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[fromVil];
             //change tovil rates
-            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
-            event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
+            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
+            //event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
             event_rates[toVil][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[toVil];
             break;
         case 1:
             I1[fromVil] = --I1[fromVil];
             I1[toVil] = ++I1[toVil];
             //change fromvil rates
-            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
-            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
+            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
+            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
             event_rates[fromVil][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[fromVil];
-            event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
+            //event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
             event_rates[fromVil][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[fromVil];
             //change tovil rates
-            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
-            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
+            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
+            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
             event_rates[toVil][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[toVil];
-            event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
+            //event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
             event_rates[toVil][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[toVil];
             break;
         case 2:
@@ -321,39 +321,39 @@ void chooseCompartment(int moveInd, vector<double> &S, vector<double> &I1, vecto
             R[toVil] = ++R[toVil];
             //change fromvil rates
             event_rates[fromVil][WANING_EVENT]                         = RHO*R[fromVil];
-            event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
+            //event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
             event_rates[fromVil][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[fromVil];
             //change tovil rates
             event_rates[toVil][WANING_EVENT]                         = RHO*R[toVil];
-            event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
+            //event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
             event_rates[toVil][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[toVil];
             break;
         case 3:
             P[fromVil] = --P[fromVil];
             P[toVil] = ++P[toVil];
             //change fromvil rates
-            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
-            event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
+            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
+            //event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
             event_rates[fromVil][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P[fromVil];
             //change tovil rates
-            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
-            event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
+            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
+            //event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
             event_rates[toVil][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P[toVil];
             break;
         case 4:
             Ir[fromVil] = --Ir[fromVil];
             Ir[toVil] = ++Ir[toVil];
             //change fromvil rates
-            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
-            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil])*(I1[fromVil]+ KAPPA*Ir[fromVil]);
+            event_rates[fromVil][FIRST_INFECTION_EVENT]                = BETA*S[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
+            event_rates[fromVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[fromVil]*(I1[fromVil]+ KAPPA*Ir[fromVil])/(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]);
             event_rates[fromVil][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir[fromVil];
-            event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
+            //event_rates[fromVil][BIRTH_EVENT]                          = (S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]<TOT[fromVil]) ? BIRTH*(S[fromVil]+I1[fromVil]+R[fromVil]+P[fromVil]+Ir[fromVil]) : 0;
             event_rates[fromVil][DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir[fromVil];
             //change tovil rates
-            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
-            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil])*(I1[toVil]+ KAPPA*Ir[toVil]);
+            event_rates[toVil][FIRST_INFECTION_EVENT]                = BETA*S[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
+            event_rates[toVil][REINFECTION_EVENT]                    = KAPPA*BETA*P[toVil]*(I1[toVil]+ KAPPA*Ir[toVil])/(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]);
             event_rates[toVil][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir[toVil];
-            event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
+            //event_rates[toVil][BIRTH_EVENT]                          = (S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]<TOT[toVil]) ? BIRTH*(S[toVil]+I1[toVil]+R[toVil]+P[toVil]+Ir[toVil]) : 0;
             event_rates[toVil][DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir[toVil];
             break;
         default:
@@ -365,10 +365,10 @@ inline void process_first_infection_event(vector<double> &S, vector<double> &I1,
     const int j = chosenVillage;
     S[j]  = --S[j];
     I1[j] = ++I1[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]                  +R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]                  +R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
     event_rates[j][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[j];
 }
@@ -377,10 +377,10 @@ inline void process_reinfection_event(const vector<double> S, const vector<doubl
     const int j = chosenVillage;
     P[j]  = --P[j];
     Ir[j] = ++Ir[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P[j];
     event_rates[j][DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir[j];
 }
@@ -389,11 +389,11 @@ inline void process_recovery_from_first_infection_event(const vector<double> S, 
     const int j = chosenVillage;
     I1[j] = --I1[j];
     R[j]  = ++R[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[j];
     event_rates[j][WANING_EVENT]                         = RHO*R[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[j];
     event_rates[j][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[j];
 }
@@ -402,11 +402,11 @@ inline void process_recovery_from_reinfection_event(const vector<double> S, cons
     const int j = chosenVillage;
     Ir[j] = --Ir[j];
     R[j]  = ++R[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir[j];
     event_rates[j][WANING_EVENT]                         = RHO*R[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[j];
     event_rates[j][DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir[j];
 }
@@ -415,63 +415,74 @@ inline void process_waning_event(const vector<double> S, const vector<double> I1
     const int j = chosenVillage;
     R[j] = --R[j];
     P[j] = ++P[j];
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][WANING_EVENT]                         = RHO*R[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[j];
     event_rates[j][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P[j];
 }
 
-inline void process_birth_event(vector<double> &S, const vector<double> I1, const vector<double> R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
+/*inline void process_birth_event(vector<double> &S, const vector<double> I1, const vector<double> R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
     const int j = chosenVillage;
     S[j] = ++S[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
+}*/
+
+inline void process_death_from_recovered_event(vector<double> &S, const vector<double> I1, vector<double> &R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
+    const int j = chosenVillage;
+    R[j] = --R[j];
+    S[j] = ++S[j];
+    event_rates[j][WANING_EVENT]                         = RHO*R[j];
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    event_rates[j][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[j];
     event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
 }
 
-inline void process_death_from_recovered_event(const vector<double> S, const vector<double> I1, vector<double> &R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
-    const int j = chosenVillage;
-    R[j] = --R[j];
-    event_rates[j][WANING_EVENT]                         = RHO*R[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
-    event_rates[j][DEATH_FROM_RECOVERED_EVENT]           = DEATH*R[j];
-}
-
-inline void process_death_from_partial_susceptible_event(const vector<double> S, const vector<double> I1, const vector<double> R, vector<double> &P, const vector<double> Ir, const int chosenVillage) {
+inline void process_death_from_partial_susceptible_event(vector<double> &S, const vector<double> I1, const vector<double> R, vector<double> &P, const vector<double> Ir, const int chosenVillage) {
     const int j = chosenVillage;
     P[j] = --P[j];
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    S[j] = ++S[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT] = DEATH*P[j];
+    event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
 }
 
 inline void process_death_from_fully_susceptible_event(vector<double> &S, const vector<double> I1, const vector<double> R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
     const int j = chosenVillage;
     S[j] = --S[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    S[j] = ++S[j];
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
 }
 
-inline void process_death_from_reinfection_event(const vector<double> S, const vector<double> I1, const vector<double> R, const vector<double> P, vector<double> &Ir, const int chosenVillage) {
+inline void process_death_from_reinfection_event(vector<double> &S, const vector<double> I1, const vector<double> R, const vector<double> P, vector<double> &Ir, const int chosenVillage) {
     const int j = chosenVillage;
     Ir[j] = --Ir[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    S[j] = ++S[j];
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_REINFECTION_EVENT]      = (RECOVERY/KAPPA)*Ir[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_REINFECTION_EVENT]         = DEATH*Ir[j];
+    event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
 }
 
-inline void process_death_from_first_infection_event(const vector<double> S, vector<double> &I1, const vector<double> R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
+inline void process_death_from_first_infection_event(vector<double> &S, vector<double> &I1, const vector<double> R, const vector<double> P, const vector<double> Ir, const int chosenVillage) {
     const int j = chosenVillage;
     I1[j] = --I1[j];
-    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
-    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]/TOT[j]*(I1[j]+ KAPPA*Ir[j]);
+    S[j] = ++S[j];
+    event_rates[j][FIRST_INFECTION_EVENT]                = BETA*S[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
+    event_rates[j][REINFECTION_EVENT]                    = KAPPA*BETA*P[j]*(I1[j]+ KAPPA*Ir[j])/TOT[j];
     event_rates[j][RECOVERY_FROM_FIRST_INFECTION_EVENT]  = RECOVERY*I1[j];
-    event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
+    //event_rates[j][BIRTH_EVENT]                          = (S[j]+I1[j]+R[j]+P[j]+Ir[j]<TOT[j]) ? BIRTH*(S[j]+I1[j]+R[j]+P[j]+Ir[j]) : 0;
     event_rates[j][DEATH_FROM_FIRST_INFECTION_EVENT]     = DEATH*I1[j];
+    event_rates[j][DEATH_FROM_FULLY_SUSCEPTIBLE_EVENT]   = DEATH*S[j];
 }
 
 inline void process_movement_event(vector<double> &S, vector<double> &I1, vector<double> &R, vector<double> &P, vector<double> &Ir,
@@ -565,7 +576,6 @@ int main(){
     vector<bool> extinct(numVillages);
     int villageInCirc;
     
-    uniform_int_distribution<> vilDis(0,(numVillages - 1));
     
     //int seed = 20;
     //mt19937 gen(seed);
@@ -586,7 +596,6 @@ int main(){
         double time = 0;
         circInt.push_back(0);
         villageInCirc = numVillages;
-        
         //nonExtinctVillages.push_back(make_pair(0,villageInCirc));
 
         for(int i = 0; i < numVillages; i++){
@@ -607,6 +616,7 @@ int main(){
             Ir[i]       = initialValues[i][IR_STATE];  //reinfected (recovers into R)
             initialize_rates(S[i],I1[i],R[i],P[i],Ir[i],i);
         }
+        
         for(int j = 0; j < 1e8; j++){
             double totalRate = 0;
             
@@ -637,8 +647,8 @@ int main(){
                 case RECOVERY_FROM_REINFECTION_EVENT:       process_recovery_from_reinfection_event(S, I1, R, P, Ir,chosenVillage);
                     break;
                 case WANING_EVENT:                          process_waning_event(S, I1, R, P, Ir, chosenVillage);                         break;
-                case BIRTH_EVENT:                           process_birth_event(S, I1, R, P, Ir, chosenVillage);
-                    break;
+                //case BIRTH_EVENT:                           process_birth_event(S, I1, R, P, Ir, chosenVillage);
+                  //  break;
                 case DEATH_FROM_RECOVERED_EVENT:            process_death_from_recovered_event(S, I1, R, P, Ir, chosenVillage);
                     break;
                 case DEATH_FROM_PARTIAL_SUSCEPTIBLE_EVENT:  process_death_from_partial_susceptible_event(S, I1, R, P, Ir, chosenVillage);
@@ -750,6 +760,6 @@ int main(){
             }
         }
     }
-    //output_results(output_streams);
+    output_results(output_streams);
     return 0;
 }
