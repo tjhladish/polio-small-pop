@@ -6,6 +6,7 @@
 #include <iterator>
 #include <assert.h>
 #include <sstream>
+#include <random>
 
 using namespace std;
 
@@ -16,7 +17,18 @@ int main(int argc, char** argv) {
     vector<double> intercase_intervals;
     int num_replicates = 0;
     int required_pcases = 0;
-    string ed_stat_output_filename = "e_and_d_values-2pcase_filter-alt-cpp2.out";
+    string ed_stat_output_filename = "e_and_d_values-det_1_N_2x8000_beta_135_fast_migrate_0_birth_with_death.out";
+   // "e_and_d_values-0pcase_filter_det_1_N_5000500050005000_beta_135_fast_metapop_4_vil_movement_migrate_0.5.out";
+    //"e_and_d_values-0pcase_filter_det_1_N_30000_beta_135_fast_movement_paper.out";
+    //exponential_distribution<double> expDis((1/.5359)); //for 3500
+    exponential_distribution<double> expDis((1/0.8022)); //for 10,000 E&D first intercase interval
+    //exponential_distribution<double> expDis((1/0.7035)); //for 10,000 true intercase
+    //exponential_distribution<double> expDis((1/0.6638)); //for 10,000 true intercase
+    //exponential_distribution<double> expDis((1/0.9228));//for 10,000 EE
+    //exponential_distribution<double> expDis(1.8863);//for 20,000
+    //exponential_distribution<double> expDis(.32664); //for 3500
+    random_device rd;                       // generates a random real number for the seed
+    mt19937 gen(rd());                      // random number generator
 
     string line;
     ifstream circ_fh(circ_ivl_filename);
@@ -27,13 +39,20 @@ int main(int argc, char** argv) {
             stringstream ss(line);
             while (ss >> val) {
                 times.push_back(val);
-                if (ss.peek() == ',') ss.ignore();
+                if (ss.peek() == ','){
+                    ss.ignore();
+                }
             }
             vector<double> all_intervals;
-            for (unsigned int i = 1; i < times.size(); ++i) {
-                all_intervals.push_back(times[i] - times[i-1]); 
-            }
             vector<double> intervals;
+            for (unsigned int i = 1; i < times.size(); ++i) {
+                /*if(i == 1 and times.size()>2){
+                    all_intervals.push_back(expDis(gen));
+                }*/
+                //else{
+                    all_intervals.push_back(times[i] - times[i-1]);
+                //}
+            }
             if (required_pcases < all_intervals.size()) {
                 copy(all_intervals.begin()+required_pcases, all_intervals.end(), back_inserter(intervals));
             }
@@ -46,14 +65,17 @@ int main(int argc, char** argv) {
     }
     circ_fh.close();
 
+
     sort(circ_intervals.begin(), circ_intervals.end()); 
-    sort(intercase_intervals.begin(), intercase_intervals.end()); 
+    sort(intercase_intervals.begin(), intercase_intervals.end());
+    
 
     const int num_ci = circ_intervals.size();
     const int num_ii = intercase_intervals.size();
 
     int last_icase_idx = 0;
     unsigned int icase_idx = 0;
+
 
     ofstream fo(ed_stat_output_filename);
 
