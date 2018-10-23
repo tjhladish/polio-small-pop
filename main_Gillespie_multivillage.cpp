@@ -23,7 +23,6 @@ using namespace std;
 string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 //string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
 string ext = "_discrete_EPS.csv";
-//string ext = "_birth_with_death_test.csv";
 const string SEP = ","; // output separator--was ", "
 
 int villageCounter = 0;
@@ -507,6 +506,7 @@ int main(){
 
             //stopping condition
             if((zero_I1 and zero_Ir)){
+                //if(circInt.size() < 2){i--;}
                 circInt.push_back(time);
                 for(unsigned int i = 0; i < (unsigned) numVillages; i++){
                     circulationInts[i].push_back(time);
