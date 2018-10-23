@@ -25,7 +25,6 @@ string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
 string ext = "_discrete_EPS.csv";
 const string SEP = ","; // output separator--was ", "
 
-int villageCounter = 0;
 uniform_real_distribution<> unifdis(0.0, 1.0);
 
 enum StateType {S_STATE,
@@ -88,8 +87,7 @@ const double MOVE_RATE             = numVillages > 1 ? 1/expectedTimeUntilMove :
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
 
-vector<pair<double,double>> location;
-
+// solve for endemic equilibrium of corresponding ODE system
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     Params * params = (Params *)p;
     const double recovery = (params->recovery);
@@ -98,23 +96,31 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double death = (params->death);
     const double kappa = (params->kappa);
     const double rho = (params->rho);
-    const double Population = (params->Population[villageCounter]);
+    const double Population = (params->Population[0]);
     const double S  = gsl_vector_get(x,S_STATE);
     const double I1 = gsl_vector_get(x,I1_STATE);
     const double R  = gsl_vector_get(x,R_STATE);
     const double P  = gsl_vector_get(x,P_STATE);
     const double Ir = gsl_vector_get(x,IR_STATE);
 
-    gsl_vector_set (f, S_STATE,  birth*Population - ((beta*S*(I1+kappa*Ir))/Population) - death*S);
-    gsl_vector_set (f, I1_STATE, ((beta*S*(I1+kappa*Ir))/Population)-recovery*I1-death*I1);
-    gsl_vector_set (f, R_STATE,  recovery*I1+(recovery/kappa)*Ir-rho*R-death*R);
-    gsl_vector_set (f, P_STATE,  rho*R - ((kappa*beta*P*(I1+kappa*Ir))/Population) - death*P);
-    gsl_vector_set (f, IR_STATE, Population - (S+I1+R+P+Ir));
+    const double birthdt = birth*Population;
+    const double foi = ((beta*(I1+kappa*Ir))/Population);
+    const double infection1 = S*foi;
+    const double infection2 = P*foi*kappa;
+    const double recovery1 = recovery*I1;
+    const double recovery2 = (recovery/kappa)*Ir;
+    const double waning = rho*R;
+
+    gsl_vector_set (f, S_STATE,  birthdt - infection1 - death*S);
+    gsl_vector_set (f, I1_STATE, infection1 - recovery1 - death*I1);
+    gsl_vector_set (f, R_STATE,  recovery1 + recovery2 - waning - death*R);
+    gsl_vector_set (f, P_STATE,  waning - infection2 - death*P);
+    gsl_vector_set (f, IR_STATE, infection2 - recovery2 - death*Ir);
 
     return GSL_SUCCESS;
 }
 
-vector<double> initialize_compartments() {
+vector<double> initialize_compartment(int villageId) {
     //initial population from equilibrium values
     Params params ={};
     params.recovery = RECOVERY;
@@ -123,7 +129,7 @@ vector<double> initialize_compartments() {
     params.death = DEATH;
     params.kappa = KAPPA;
     params.rho = RHO;
-    params.Population = village_pop;
+    params.Population = {village_pop[villageId]};
 
     int i, times, status;
     gsl_multiroot_function F;
@@ -413,8 +419,7 @@ int main(){
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
-        compartments[villageCounter] = initialize_compartments();
-        villageCounter++;
+        compartments[i] = initialize_compartment(i);
     }
     const int EPS_RES = 100; // resolution of endemic potential statistic, in divisions per year
     const int EPS_MAX = 50;  // circulation interval considered for EPS calculation, in years
