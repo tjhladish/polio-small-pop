@@ -14,12 +14,12 @@
 #include <assert.h>
 #include <sstream>
 #include <map>
-#include<sys/time.h>
+#include <sys/time.h>
 
 using namespace std;
 
-//string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
-string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
+string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
+//string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
 string ext = "_ES_stat_multinomial_extinct_test.csv";
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
@@ -384,19 +384,20 @@ void output_results(vector<stringstream> &output_streams) {
     output_filenames[CIRCULATION_INTERVAL_OUT ] = output_dir + "circulation_interval_"+base_filename;
     output_filenames[PCASE_TALLY_OUT          ] = output_dir + "pCases_per_year_" + base_filename;
 
-    for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
-        const OutputType ot = (OutputType) ot_idx;
+//    for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
+//        const OutputType ot = (OutputType) ot_idx;
+        const OutputType ot = CIRCULATION_INTERVAL_OUT;
         ofstream ofs;
         ofs.open(output_filenames[ot]);
         ofs << output_streams[ot].rdbuf();
         ofs.close();
-    }
+//    }
 }
 
 int main(){
     vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
 
-    const int numSims=10000;                  // Number of Simulations to run:
+    const int numSims=1000;                  // Number of Simulations to run:
     vector<double> TTE;                     // time to extinction vector -- use to get numerator for Eichner & Dietz stat
     vector<double> pCaseDetection;          // time of paralytic cases vector (also use for case-free periods)
     vector<double> totalParalyticCases;     // vector for num paralytic cases
@@ -415,6 +416,11 @@ int main(){
 
     //find expected compartment size
     const vector<double> compartments = initialize_compartments();
+
+    const int EPS_RES = 100; // resolution of endemic potential statistic, in divisions per year
+    const int EPS_MAX = 50;  // circulation interval considered for EPS calculation, in years
+    vector<int> eps_circ_ivls(EPS_MAX*EPS_RES, 0); // 50 yrs divided into 100 bins each
+    vector<int> eps_intercase_ivls(EPS_MAX*EPS_RES, 0); // 50 yrs divided into 100 bins each
 
     //The Simulation
     for(int i=0;i<numSims;++i){
@@ -437,7 +443,7 @@ int main(){
         circInt.clear();
         circInt.push_back(0);
 
-        //run the simulation for 1 mill steps
+        //run the simulation for 100 mil steps
         for(int j=0;j<1e8;++j){
             double totalRate = 0;
             EventType event_type = sample_event(gen, totalRate, S, I1, R, P, Ir);
@@ -516,7 +522,7 @@ int main(){
                 output_streams[P_AT_PCASE_OUT]  << endl;
                 output_streams[IR_AT_PCASE_OUT] << endl;
                 //pCaseDetection.push_back(time-tsc);//use for Eichner & Dietz statistic
-                circInt.push_back(time);
+                circInt.push_back(time); // not a good variable name--these aren't circulation intervals, they're case times
                 for(unsigned int i = 0; i < time_at_first_inf.size(); i++){
                     output_streams[FIRST_INF_EVENT_TIMES_OUT]<<time_at_first_inf[i];
                     if(i < time_at_first_inf.size() - 1){
@@ -525,8 +531,12 @@ int main(){
                 }
                 output_streams[FIRST_INF_EVENT_TIMES_OUT] << endl;
                 for(unsigned int i = 0; i < circInt.size(); i++){
+                    const double ci = i > 0 ? circInt[i] - circInt[i-1] : circInt[i];
+                    const int eps_idx = ci < EPS_MAX ? (int) (ci*EPS_RES) : EPS_MAX*EPS_RES - 1;
+                    eps_circ_ivls[eps_idx]++;
                     output_streams[CIRCULATION_INTERVAL_OUT]<<circInt[i];
                     if(i < circInt.size() - 1){
+                        eps_intercase_ivls[eps_idx]++;
                         output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
                     }
                 }
@@ -574,6 +584,10 @@ int main(){
             }
         }
 
+    }
+    assert(eps_intercase_ivls.size() == eps_circ_ivls.size());
+    for (unsigned int i = 0; i < eps_circ_ivls.size(); ++i) {
+        cerr << eps_intercase_ivls[i] << SEP << eps_circ_ivls[i] << endl;
     }
     for(unsigned int i = 0; i < totalParalyticCases.size(); i++){
         output_streams[PCASE_INCIDENCE_OUT] <<totalParalyticCases[i] << endl;
