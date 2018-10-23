@@ -184,16 +184,16 @@ vector<double> initialize_compartments() {
     return compartments;
 }
 
-vector<int> multinomial_Compartments(int num_Compartments,const vector<double> expectedComp,int i){
+vector<int> multinomial_Compartments(int num_Compartments,const vector<double> expectedComp,int i,uint seed){
     const gsl_rng_type* T;
     gsl_rng* r;
     gsl_rng_env_setup();
     T = gsl_rng_default;
     r = gsl_rng_alloc(T);
     //sets seed by time of day
-    struct timeval tv;
-    gettimeofday(&tv,0);
-    unsigned long mySeed = tv.tv_sec + tv.tv_usec;
+    //struct timeval tv;
+    //gettimeofday(&tv,0);
+    unsigned long mySeed = seed;//tv.tv_sec + tv.tv_usec;
     //mySeed = 20;
     gsl_rng_set(r,mySeed);
     unsigned int num_Trials = village_pop[i];
@@ -409,7 +409,7 @@ int main(){
     mt19937 gen(seed);                      // random number generator
     //mt19937 gen(rd());                      // random number generator
 
-    const int numSims = 1000;
+    const int numSims = 5;
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
@@ -435,7 +435,7 @@ int main(){
 
         for(int i = 0; i < numVillages;i++){
             //set initial values for each village using multinomial dist
-            initialValues[i] = multinomial_Compartments(compartments[i].size(),compartments[i],i);
+            initialValues[i] = multinomial_Compartments(compartments[i].size(),compartments[i],i,gen());
             S[i]        = initialValues[i][S_STATE];   //naive susceptible (no previous contact w/virus, moves into I1)
             I1[i]       = initialValues[i][I1_STATE];  //first infected (only time paralytic case can occur, recovers into R)
             R[i]        = initialValues[i][R_STATE];   //recovered (fully immune, wanes into P)
@@ -506,7 +506,10 @@ int main(){
 
             //stopping condition
             if((zero_I1 and zero_Ir)){
-                //if(circInt.size() < 2){i--;}
+/*for(int k = 0; k < numVillages; k++){
+    cerr << S[k] << " " << I1[k] << " " << R[k] << " " << P[k] << " " << Ir[k] << " " << endl;
+}*/
+      //if(circInt.size() < 2){i--;}
                 circInt.push_back(time);
                 for(unsigned int i = 0; i < (unsigned) numVillages; i++){
                     circulationInts[i].push_back(time);
