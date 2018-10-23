@@ -8,3 +8,6 @@ check_polio: polio original_checksums
 	rm output/*.csv
 	time -p ./polio
 	md5sum -c original_checksums
+
+testODE: main_testEqODESoln.cpp
+	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
