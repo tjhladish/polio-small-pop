@@ -49,8 +49,8 @@ int main(int argc, char** argv) {
     sort(circ_intervals.begin(), circ_intervals.end()); 
     sort(intercase_intervals.begin(), intercase_intervals.end()); 
 
-    int num_ci = circ_intervals.size();
-    int num_ii = intercase_intervals.size();
+    const int num_ci = circ_intervals.size();
+    const int num_ii = intercase_intervals.size();
 
     int last_icase_idx = 0;
     unsigned int icase_idx = 0;
