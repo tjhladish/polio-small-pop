@@ -5,8 +5,8 @@ library(RColorBrewer)
 # replace this stuff:
 # filter_3500_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
 # filter_3500_1_pcase = read.table(paste0(dir,'e_and_d_values-1pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
-# filter_10000_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
-# filter_10000_1_pcase = read.table(paste0(dir,'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
+ filter_10000_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
+filter_10000_1_pcase = read.table(paste0(dir,'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
 # filter_5000_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
 # filter_5000_1_pcase = read.table(paste0(dir,'e_and_d_values-1pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
 # filter_20000_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
@@ -29,19 +29,38 @@ read_ed_data <- function(fn, dir) {
 
 fnlist <- c(
   'e_and_d_values-0pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out',
-  'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
-  'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
-  'e_and_d_values-0pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
-  'e_and_d_values-0pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out'
+  'e_and_d_values-1pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out'
+  # 'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-1pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-0pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-1pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-0pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out',
+  # 'e_and_d_values-1pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out'
 )
 
 thing <- lapply(fnlist, read_ed_data, dir=dir)
 thing2 <- Reduce(rbind, thing)
+
+#absolute risk
+absRiskMat<-matrix(0,nrow=nrow(thing[[1]]),ncol=2)
+for(i in 1:nrow(thing[[2]])){
+  for(j in 1:nrow(thing[[1]])){
+    if(i > 1){
+      if((thing[[1]]$time[j]<=thing[[2]]$time[i]) && (thing[[1]]$time[j] > thing[[2]]$time[i-1])){
+        absRiskMat[j,1] = thing[[1]]$time[j]
+        absRiskMat[j,2] = thing[[2]]$E.D[i] - thing[[1]]$E.D[j]
+      }
+    }
+    else{
+      if((thing[[1]]$time[j]<=thing[[2]]$time[i])){
+        absRiskMat[j,1] = thing[[1]]$time[j]
+        absRiskMat[j,2] = thing[[2]]$E.D[i] - thing[[1]]$E.D[j]
+      }
+    }
+  }
+}
 
 marker = list(color = brewer.pal(8,"GnBu"))
 
@@ -90,5 +109,13 @@ filter_21000_no_pcase = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_
 filter_21000_1_pcase = read.table(paste0(dir,'e_and_d_values-1pcase_filter_det_1_N_21000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
 plot(filter_21000_no_pcase,type='l')
 lines(filter_21000_1_pcase,col='red')
+
+png(paste0(dir,'Compare_starting_conditions_N_10000.png'), width=1200, height=800, res=150)
+plot(filter_10000_no_pcase,type='l',xlab = 'Time since last paralytic case (years)',ylab = 'Endemic potential statistic (probability of circulation)',main='Compare Starting Conditions (N=10,000)')
+lines(filter_10000_1_pcase,lty=4,col='black')
+lines(test_10000_mostly_sus,col='red')
+lines(test_10000_mostly_sus_1pcase,lty=4,col='red')
+legend('topright', legend=c('EE - ICA','EE - Non-ICA','mostly susceptible - ICA','mostly susceptible - Non-ICA'),col=c('black','black','red','red'),lty=c(1,4,1,4),bty='n')
+dev.off()
 
 
