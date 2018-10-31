@@ -29,40 +29,52 @@ read_ed_data <- function(fn, dir) {
 
 fnlist <- c(
   'e_and_d_values-0pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out',
-  'e_and_d_values-1pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out'
-  # 'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-1pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-0pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-1pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-0pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out',
-  # 'e_and_d_values-1pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out'
+  'e_and_d_values-1pcase_filter_det_1_N_3500_beta_135_fast_response_paper.out',
+  'e_and_d_values-0pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
+  'e_and_d_values-1pcase_filter_det_1_N_10000_beta_135_fast_response_paper.out',
+  'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
+  'e_and_d_values-1pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out',
+  'e_and_d_values-0pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
+  'e_and_d_values-1pcase_filter_det_1_N_20000_beta_135_fast_response_paper.out',
+  'e_and_d_values-0pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out',
+  'e_and_d_values-1pcase_filter_det_1_N_25000_beta_135_fast_response_paper.out'
 )
 
 thing <- lapply(fnlist, read_ed_data, dir=dir)
 thing2 <- Reduce(rbind, thing)
 
+for(k in 0:4){
+  assign(paste("absRiskMat",thing[[1*k+1]]$N[1],sep="_"),matrix(0,nrow=nrow(thing[[1*k+1]]),ncol=2))
+}
+absRiskMat_10000 <-matrix(0,nrow=nrow(thing[[3]]),ncol=2)
+
 #absolute risk
-absRiskMat<-matrix(0,nrow=nrow(thing[[1]]),ncol=2)
-for(i in 1:nrow(thing[[2]])){
-  for(j in 1:nrow(thing[[1]])){
-    if(i > 1){
-      if((thing[[1]]$time[j]<=thing[[2]]$time[i]) && (thing[[1]]$time[j] > thing[[2]]$time[i-1])){
-        absRiskMat[j,1] = thing[[1]]$time[j]
-        absRiskMat[j,2] = thing[[2]]$E.D[i] - thing[[1]]$E.D[j]
+for(k in 2:2){
+  print('pop 1')
+  print(thing[[1*k+1]]$N[1])
+  print('pop 2')
+  print(thing[[2*k]]$N[1])
+  for(i in 1:nrow(thing[[2*k]])){
+    for(j in 1:nrow(thing[[1*k+1]])){
+      if(i > 1){
+        if((thing[[1*k+1]]$time[j]<=thing[[2*k]]$time[i]) && (thing[[1*k+1]]$time[j] > thing[[2*k]]$time[i-1])){
+          absRiskMat_10000[j,1] = thing[[1*k+1]]$time[j]
+          absRiskMat_10000[j,2] = thing[[2*k]]$E.D[i] - thing[[1*k+1]]$E.D[j]
+        }
       }
-    }
-    else{
-      if((thing[[1]]$time[j]<=thing[[2]]$time[i])){
-        absRiskMat[j,1] = thing[[1]]$time[j]
-        absRiskMat[j,2] = thing[[2]]$E.D[i] - thing[[1]]$E.D[j]
+      else{
+        if((thing[[1*k+1]]$time[j]<=thing[[2*k]]$time[i])){
+          absRiskMat_10000[j,1] = thing[[1*k+1]]$time[j]
+          absRiskMat_10000[j,2] = thing[[2*k]]$E.D[i] - thing[[1*k+1]]$E.D[j]
+        }
       }
     }
   }
 }
 
 marker = list(color = brewer.pal(8,"GnBu"))
+absRiskMat_10000_df<-as.data.frame(absRiskMat_10000)
+
 
 png(paste0(dir,'Population_size_on_ED_statistic_response_paper.png'), width=1200, height=800, res=150)
 
