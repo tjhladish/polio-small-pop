@@ -58,3 +58,50 @@ lines(one_filter_beta_260_3500,type='l', lty=4,col = marker$color[7])
 legend('topright', legend = c('ICA, beta = 135 (N=3500)','no ICA, beta = 135 (N=3500)', 'ICA, beta = 200 (N=3500)','no ICA, beta=200 (N=3500)','ICA, beta = 260 (N=3500)','no ICA, beta = 260 (N=3500)'),col=c(marker$color[5],marker$color[5],marker$color[6],marker$color[6],marker$color[7],marker$color[7]),lwd=2,lty=c(1,4,1,4), bty='n' )
 
 dev.off()
+
+absRiskMat_20000_beta_135 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_20000.csv'),header=FALSE)
+absRiskMat_20000_beta_200 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_20000_beta_200.csv'),header=FALSE)
+absRiskMat_20000_beta_260 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_20000_beta_260.csv'),header=FALSE)
+absRiskMat_5000_beta_135 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_5000.csv'),header=FALSE)
+absRiskMat_5000_beta_200 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_5000_beta_200.csv'),header=FALSE)
+absRiskMat_5000_beta_260 = read.csv(file=paste0(dir,'absolute_risk_matrix_N_5000_beta_260.csv'),header=FALSE)
+
+no_filter_beta_135_5000 = read.table(paste0(dir,'e_and_d_values-0pcase_filter_det_1_N_5000_beta_135_fast_response_paper.out'), col.names=c('time', 'E&D'))
+no_filter_beta_200_5000 = read.table(paste0(dir,'e_and_d_value-0pcase_det_1_N_5000_beta_200_fast_migrate_0_response_paper.out'), col.names=c('time', 'E&D'))
+no_filter_beta_260_5000 = read.table(paste0(dir,'e_and_d_value-0pcase_det_1_N_5000_beta_260_fast_migrate_0_response_paper.out'), col.names=c('time', 'E&D'))
+
+
+png(paste0(dir,'Effect_of_R0_on_ED_statistic_N_20000_response_paper_absRisk.png'), width=1400, height=800, res=150)
+par(mfrow=c(2,1),mar=c(0,3,0,0),oma=c(3,3,1,1),mgp=c(2,1,0))
+plot(no_filter_beta_135_20000, type='l',lty=1, xlab = '',ylab = 'Probability of circulation',xlim=c(0,10),xaxt='n',col=marker$color[5])
+lines(no_filter_beta_200_20000,type='l', col=marker$color[6])
+lines(no_filter_beta_260_20000,type='l', col=marker$color[7])
+legend('topright', legend = c('beta=135 (N=20000)','beta=200 (N=20000)',
+                              'beta=260 (N=20000)'),col=marker$color[5:7],lwd=2, bty='n' )
+plot(absRiskMat_20000_beta_135[1:(nrow(absRiskMat_20000_beta_135)-4),], type='l',lty=1, xlab="Time since last paralytic case (years)",ylab="Absolute risk of circulation",yaxt='n',ylim=c(-.025,.01),xlim=c(0,10),col=marker$color[5])
+lines(absRiskMat_20000_beta_200,type='l', col=marker$color[6])
+lines(absRiskMat_20000_beta_260[1:(nrow(absRiskMat_20000_beta_260)-1),],type='l', col=marker$color[7])
+ticks<-c(-.02,-.01,0)
+axis(2,at=ticks,labels=ticks)
+abline(0,0)
+legend('bottomright', legend = c('beta=135 (N=20000)','beta=200 (N=20000)',
+                                 'beta=260 (N=20000)'),col=marker$color[5:7],lwd=2, bty='n' )
+mtext("Time since last paralytic case (years)",side=1,line=2)
+dev.off()
+
+png(paste0(dir,'Effect_of_R0_on_ED_statistic_N_5000_response_paper_absRisk.png'), width=1400, height=800, res=150)
+par(mfrow=c(2,1),mar=c(0,3,0,0),oma=c(3,3,1,1),mgp=c(2,1,0))
+plot(no_filter_beta_135_5000, type='l',lty=1, xlab = '',ylab = 'Probability of circulation',xlim=c(0,10),xaxt='n',col=marker$color[5])
+lines(no_filter_beta_200_5000,type='l', col=marker$color[6])
+lines(no_filter_beta_260_5000,type='l', col=marker$color[7])
+legend('topright', legend = c('beta=135 (N=5000)','beta=200 (N=5000)',
+                              'beta=260 (N=5000)'),col=marker$color[5:7],lwd=2, bty='n' )
+plot(absRiskMat_5000_beta_135[1:(nrow(absRiskMat_5000_beta_135)-3),], type='l',lty=1, xlab='Time since last paralytic case (years)', ylab='Absolute risk of circulation',xlim=c(0,10),col=marker$color[5],ylim=c(-.05,.05))
+lines(absRiskMat_5000_beta_200,type='l', col=marker$color[6])
+lines(absRiskMat_5000_beta_260,type='l', col=marker$color[7])
+abline(0,0)
+legend('topright', legend = c('beta=135 (N=5000)','beta=200 (N=5000)',
+                              'beta=260 (N=5000)'),col=marker$color[5:7],lwd=2, bty='n' )
+mtext("Time since last paralytic case (years)",side=1,line=2)
+dev.off()
+
