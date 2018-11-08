@@ -20,9 +20,9 @@
 
 using namespace std;
 
-string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
-//string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
-string ext = "_discrete_EPS.csv";
+//string output_dir = "/home/tjhladish/work/polio-small-pop/output/";
+string output_dir ="/Users/Celeste/Desktop/C++PolioSimResults/Corrected SC Sims Results/";
+string ext = "_test_EE1.csv";
 const string SEP = ","; // output separator--was ", "
 
 uniform_real_distribution<> unifdis(0.0, 1.0);
@@ -43,13 +43,14 @@ enum EventType {FIRST_INFECTION_EVENT,
                 MOVE_EVENT,
                 NUM_OF_EVENT_TYPES};
 
-enum OutputType{S_OUT,
-                I1_OUT,
-                R_OUT,
-                P_OUT,
-                IR_OUT,
-                NON_EXTINCT_VILLAGES,
+enum OutputType{//S_OUT,
+                //I1_OUT,
+                //R_OUT,
+                //P_OUT,
+                //IR_OUT,
+                //NON_EXTINCT_VILLAGES,
                 CIRCULATION_INTERVAL_OUT,
+                EPIDEMIC_CURVE_OUT,
                 NUM_OF_OUTPUT_TYPES};
 
 
@@ -68,6 +69,18 @@ struct VillageEvent{ //keeps track of which events are occurring to which villag
     int village;
 };
 
+//fast waning parameters:
+//kappa = 0.4179
+//rho = 0.2
+
+//intermediate waning parameters:
+//kappa = 0.6383
+//rho = 0.04
+
+//slow waning parameters:
+//kappa = 0.8434
+//rho = 0.02
+
 const double KAPPA                 = 0.4179; //waning depth parameter
 const double RHO                   = 0.2; //waning speed parameter
 
@@ -82,8 +95,8 @@ const double BIRTH                 = 1/lifespan; //birth rate (per year)
 const double DEATH                 = 1/lifespan; //death rate (per year)
 const double PIR                   = 0.005;            //type 1 paralysis rate (naturally occurring cases)
 const double DET_RATE              = 1.0;
-const double expectedTimeUntilMove = 2; //years
-const double MOVE_RATE             = numVillages > 1 ? 1/expectedTimeUntilMove : 0;
+const double expectedTimeUntilMove = 0; //years
+const double MOVE_RATE             = expectedTimeUntilMove > 0 ? 1/expectedTimeUntilMove : 0;
 
 vector<vector<double>> event_rates(numVillages, vector<double>(NUM_OF_EVENT_TYPES, 0.0));
 
@@ -97,11 +110,11 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double kappa = (params->kappa);
     const double rho = (params->rho);
     const double Population = (params->Population[0]);
-    const double S  = gsl_vector_get(x,S_STATE);
-    const double I1 = gsl_vector_get(x,I1_STATE);
-    const double R  = gsl_vector_get(x,R_STATE);
-    const double P  = gsl_vector_get(x,P_STATE);
-    const double Ir = gsl_vector_get(x,IR_STATE);
+    const double S  = Population*gsl_vector_get(x,S_STATE);
+    const double I1 = Population*gsl_vector_get(x,I1_STATE);
+    const double R  = Population*gsl_vector_get(x,R_STATE);
+    const double P  = Population*gsl_vector_get(x,P_STATE);
+    const double Ir = Population*gsl_vector_get(x,IR_STATE);
 
     const double birthdt = birth*Population;
     const double foi = ((beta*(I1+kappa*Ir))/Population);
@@ -111,11 +124,11 @@ int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     const double recovery2 = (recovery/kappa)*Ir;
     const double waning = rho*R;
 
-    gsl_vector_set (f, S_STATE,  birthdt - infection1 - death*S);
-    gsl_vector_set (f, I1_STATE, infection1 - recovery1 - death*I1);
-    gsl_vector_set (f, R_STATE,  recovery1 + recovery2 - waning - death*R);
-    gsl_vector_set (f, P_STATE,  waning - infection2 - death*P);
-    gsl_vector_set (f, IR_STATE, infection2 - recovery2 - death*Ir);
+    gsl_vector_set (f, S_STATE,  (birthdt - infection1 - death*S)/Population);
+    gsl_vector_set (f, I1_STATE, (infection1 - recovery1 - death*I1)/Population);
+    gsl_vector_set (f, R_STATE,  (recovery1 + recovery2 - waning - death*R)/Population);
+    gsl_vector_set (f, P_STATE,  (waning - infection2 - death*P)/Population);
+    gsl_vector_set (f, IR_STATE, (infection2 - recovery2 - death*Ir)/Population);
 
     return GSL_SUCCESS;
 }
@@ -147,7 +160,7 @@ vector<double> initialize_compartment(int villageId) {
     int MAXTIMES = 100;
     /* set initial value */
     for(i = 0; i < num_dimensions; i++){
-        gsl_vector_set(x,i,100);
+        gsl_vector_set(x,i,.1);
     }
 
     /* set solver */
@@ -205,7 +218,7 @@ vector<int> multinomial_Compartments(int num_Compartments,const vector<double> e
     unsigned int num_Trials = village_pop[i];
     double *p = new double[num_Compartments];
     for(unsigned int i = 0; i < expectedComp.size(); i++){
-        p[i] = expectedComp[i];
+        p[i] = num_Trials*expectedComp[i];
     }
     vector<int> initialCompartments(num_Compartments);
     //generates weights for compartments using equilibrium value from large population
@@ -367,15 +380,16 @@ void output_results(vector<stringstream> &output_streams) {
     vector<string> output_filenames(NUM_OF_OUTPUT_TYPES);
 
     output_filenames[CIRCULATION_INTERVAL_OUT ] = output_dir + "circulation_interval_"+base_filename;
+    //output_filenames[EPIDEMIC_CURVE_OUT ] = output_dir + "epi_curve_"+base_filename;
 
-//    for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
-//        const OutputType ot = (OutputType) ot_idx;
+    //for (int ot_idx = 0; ot_idx < NUM_OF_OUTPUT_TYPES; ++ot_idx) {
+        //const OutputType ot = (OutputType) ot_idx;
         const OutputType ot = CIRCULATION_INTERVAL_OUT;
         ofstream ofs;
         ofs.open(output_filenames[ot]);
         ofs << output_streams[ot].rdbuf();
         ofs.close();
-//    }
+    //}
 }
 
 int main(){
@@ -389,6 +403,9 @@ int main(){
 
     //initialize size of total rates for each village
     vector<double> rateVec(numVillages);
+    
+    //count number of new infections (I1 infections) at time t to look at epidemic curve
+    vector<pair<double,double>> epiCurve;
 
     //initialize size of vectors for individual compartments
     vector<double> S(numVillages, 0.0);
@@ -415,7 +432,7 @@ int main(){
     mt19937 gen(seed);                      // random number generator
     //mt19937 gen(rd());                      // random number generator
 
-    const int numSims = 5;
+    const int numSims = 10000;
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
@@ -431,15 +448,18 @@ int main(){
         double time = 0;
         circInt.push_back(0);
         villageInCirc = numVillages;
+        //epiCurve.clear();
         //nonExtinctVillages.push_back(make_pair(0,villageInCirc));
 
-        for(int i = 0; i < numVillages; i++){
+       for(int i = 0; i < numVillages; i++){
             circulationInts[i].push_back(0);//first time for each vector for each village is 0
             extinct[i] = false;
         }
-
+         //cout<<"epi curve size after clear "<<epiCurve.size()<<"\n";
+        //epiCurve.push_back(make_pair(0.0,1.0));//initialize at 1 new I1 infection
         for(int i = 0; i < numVillages;i++){
             //set initial values for each village using multinomial dist
+            
             initialValues[i] = multinomial_Compartments(compartments[i].size(),compartments[i],i,gen());
             S[i]        = initialValues[i][S_STATE];   //naive susceptible (no previous contact w/virus, moves into I1)
             I1[i]       = initialValues[i][I1_STATE];  //first infected (only time paralytic case can occur, recovers into R)
@@ -449,9 +469,8 @@ int main(){
             calculate_rates(S, I1, R, P, Ir, i);
         }
 
-        for(int j = 0; j < 1e8; j++){
+        for(int j = 0; j < 1e10; j++){
             double totalRate = 0;
-
             VillageEvent ve = sample_event(gen, totalRate, S, I1, R, P, Ir, time);
             EventType event_type = ve.event;
             const uint A = ve.village;
@@ -495,30 +514,38 @@ int main(){
                 //if (Ir[k] < 0) cerr << S[k] << " " << I1[k] << " " << R[k] << " " << P[k] << " " << Ir[k] << " " << endl;
                 assert(Ir[k] >= 0);
             }
+            
             //generate the time at which the event occurs
             exponential_distribution<>rng(totalRate);
             time+=rng(gen);
-            for(int k = 0; k < numVillages; k++){
+            /*if(fmod(time,.01) < .001){
+                epiCurve.push_back(make_pair(time, I1[A]));
+            }*/
+            /*for(int k = 0; k < numVillages; k++){
                 if(I1[k]+Ir[k]==0 and extinct[k] == false){
                     villageInCirc--;
                     extinct[k] = true;
                     //nonExtinctVillages.push_back(make_pair(time,villageInCirc));
                     break;
                 }
-            }
+            }*/
             bool zero_I1 = all_of(I1.begin(),I1.end(),[](int i){return i==0;});
             bool zero_Ir = all_of(Ir.begin(),Ir.end(),[](int i){return i==0;});
 
             //stopping condition
             if((zero_I1 and zero_Ir)){
-/*for(int k = 0; k < numVillages; k++){
-    cerr << S[k] << " " << I1[k] << " " << R[k] << " " << P[k] << " " << Ir[k] << " " << endl;
-}*/
-      //if(circInt.size() < 2){i--;}
+                //if(circulationInts[0].size() < 2){i--;}
                 circInt.push_back(time);
                 for(unsigned int i = 0; i < (unsigned) numVillages; i++){
                     circulationInts[i].push_back(time);
                 }
+                //cout<<"epiCurve size "<<epiCurve.size()<<"\n";
+                /*for(unsigned int nI1Inf = 0; nI1Inf < (unsigned) epiCurve.size(); nI1Inf++){
+                    cout<<"time "<<epiCurve[nI1Inf].first<<"\n";
+                    cout<<"num inf "<<epiCurve[nI1Inf].second<<"\n";
+                    output_streams[EPIDEMIC_CURVE_OUT]<<epiCurve[nI1Inf].first<<SEP<<epiCurve[nI1Inf].second<<endl;
+                }*/
+                
                 for(unsigned int i = 0; i < (unsigned) numVillages;i++){
                     //cout<<"circulationInts["<<i<<"] size "<<circulationInts[i].size()<<"\n";
                     for(unsigned int j = 0; j < circulationInts[i].size();j++){
