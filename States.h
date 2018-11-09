@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include "Params.h"
 
 enum StateType {
   S_STATE,
@@ -14,5 +15,7 @@ enum StateType {
 };
 
 const std::vector<std::string> statestr = {"S", "I1", "R", "P", "IR"};
+
+std::vector<double> equilibrium(Params p);
 
 #endif

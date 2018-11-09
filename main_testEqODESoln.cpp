@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include "Params.h"
-#include "StateType.h"
+#include "States.h"
 
 using namespace std;
 
