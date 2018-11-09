@@ -9,5 +9,23 @@ check_polio: polio original_checksums
 	time -p ./polio
 	md5sum -c original_checksums
 
-testODE: main_testEqODESoln.cpp
-	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
+# git submodule add -b master --depth 1 https://github.com/open-source-parsers/jsoncpp
+json/include/nlohmann/json.hpp:
+	git submodule update --init --recursive --remote
+
+# vs
+# git submodule add -b master --depth 1 https://github.com/nlohmann/json
+
+ARCHIVE := libtool -static -a -o
+CPP := g++ -O2 --std=c++11 -Wall --pedantic
+
+JSONINC := -Ijson/include
+
+Params.o: Params.cpp Params.h json/include/nlohmann/json.hpp
+	$(CPP) -c $< -o $@ $(JSONINC)
+
+libsim.a: Params.o
+	$(ARCHIVE) $@ $^
+
+testODE: main_testEqODESoln.cpp libsim.a
+	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim

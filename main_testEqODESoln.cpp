@@ -18,41 +18,23 @@
 #include <sys/time.h>
 #include <algorithm>
 
+#include "Params.h"
+#include "StateType.h"
+
 using namespace std;
 
-enum StateType {
-  S_STATE,
-  I1_STATE,
-  R_STATE,
-  P_STATE,
-  IR_STATE,
-  NUM_OF_STATE_TYPES
-};
-
-const vector<string> statestr = {"S", "I1", "R", "P", "IR"};
-
-struct Params{
-    double recovery;
-    double beta;
-    double birth;
-    double death;
-    double kappa;
-    double rho;
-    vector<double> Population;
-};
-
-const double KAPPA                 = 0.4179; //waning depth parameter
-const double RHO                   = 0.2; //waning speed parameter
+// const double KAPPA                 = 0.4179; //waning depth parameter
+// const double RHO                   = 0.2; //waning speed parameter
 
 //other parameters
-const vector<double> village_pop   = {1000};
-const int numVillages              = village_pop.size(); //total number of villages under consideration
-const int numDaysToRecover         = 28;
-const double RECOVERY              = 365/numDaysToRecover;    //recovery rate (/year)
-const double BETA                  = 135;   //contact rate (individuals/year)
-const double lifespan              = 50;
-const double BIRTH                 = 1/lifespan; //birth rate (per year)
-const double DEATH                 = 1/lifespan; //death rate (per year)
+// const vector<double> village_pop   = {1000};
+// const int numVillages              = village_pop.size(); //total number of villages under consideration
+// const int numDaysToRecover         = 28;
+// const double RECOVERY              = 365/numDaysToRecover;    //recovery rate (/year)
+// const double BETA                  = 135;   //contact rate (individuals/year)
+// const double lifespan              = 50;
+// const double BIRTH                 = 1/lifespan; //birth rate (per year)
+// const double DEATH                 = 1/lifespan; //death rate (per year)
 
 int func_m(const gsl_vector * x, void * p, gsl_vector * f){
     Params * params = (Params *)p;
@@ -113,16 +95,10 @@ double func_i1(double I1, void * p){
     return 1 - S - I1 - IR - R - P;
 }
 
-vector<double> initialize_compartment(int villageId) {
+vector<double> initialize_compartment(int villageId, Params ref) {
     //initial population from equilibrium values
-    Params params ={};
-    params.recovery = RECOVERY;
-    params.beta = BETA;
-    params.birth = BIRTH;
-    params.death = DEATH;
-    params.kappa = KAPPA;
-    params.rho = RHO;
-    params.Population = {village_pop[villageId]};
+    Params params = ref;
+    params.Population = {ref.Population[villageId]};
 
     int i, times, status;
     gsl_multiroot_function F;
@@ -140,7 +116,7 @@ vector<double> initialize_compartment(int villageId) {
     int MAXTIMES = 100;
     /* set initial value */
     for(i = 0; i < num_dimensions; i++){
-        gsl_vector_set(x,i,100);
+        gsl_vector_set(x, i, params.Population[0]/num_dimensions);
     }
 
     /* set solver */
@@ -233,35 +209,19 @@ void findEquilibrium(Params params) {
     
     gsl_root_fsolver_free(workspace_F);
 
-    // vector<double> compartments = {
-    //   func_s(i_1, params),
-    //   i_1,
-    //   func_r(i_1, params),
-    //   func_p(i_1, params),
-    //   func_ir(i_1, params)
-    // };
-    // 
-    // return compartments;
 }
 
 int main(){
-
-    Params refparams = {};
-    refparams.recovery = RECOVERY;
-    refparams.beta = BETA;
-    refparams.birth = BIRTH;
-    refparams.death = DEATH;
-    refparams.kappa = KAPPA;
-    refparams.rho = RHO;
-    refparams.Population = {};
-
+    string jsfile = "testeq.json";
+    Params refparams = parseParams(jsfile);
+    int numVillages = refparams.Population.size();
 
     //initialize size of vector of vector of compartments
     vector<vector<double>> compartments(numVillages);
 
     //find expected compartment size for each village
     for(int i = 0; i < numVillages; i++){
-        compartments[i] = initialize_compartment(i);
+        compartments[i] = initialize_compartment(i, refparams);
     }
 
     findEquilibrium(refparams);
