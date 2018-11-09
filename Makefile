@@ -16,7 +16,8 @@ json/include/nlohmann/json.hpp:
 # vs
 # git submodule add -b master --depth 1 https://github.com/nlohmann/json
 
-ARCHIVE := libtool -static -a -o
+-include local.mk
+
 CPP := g++ -O2 --std=c++11 -Wall --pedantic
 
 JSONINC := -Ijson/include
