@@ -18,7 +18,8 @@ json/include/nlohmann/json.hpp:
 
 -include local.mk
 
-CPP := g++ -O2 --std=c++11 -Wall --pedantic
+ARCHIVE ?= $(AR) -rv
+CPP = g++ -O2 --std=c++11 -Wall --pedantic
 
 JSONINC := -Ijson/include
 
@@ -35,4 +36,7 @@ multiPatch: main_Gillespie_multivillage.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
 
 risk: calculate_absolute_risk.cpp
-	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ 
+	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@
+
+clean: *.o *.a
+	rm $^
