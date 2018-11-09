@@ -11,3 +11,9 @@ check_polio: polio original_checksums
 
 testODE: main_testEqODESoln.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
+
+multiPatch: main_Gillespie_multivillage.cpp
+	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
+
+risk: calculate_absolute_risk.cpp
+	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ 
