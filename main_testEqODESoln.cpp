@@ -201,11 +201,11 @@ void findEquilibrium(Params params) {
     double P = func_p(I1, IR, &params);
 
     /* print answer */
-    fprintf(stderr, "I1: %25.17e\n", I1);
     fprintf(stderr, "S: %25.17e\n", S);
-    fprintf(stderr, "IR: %25.17e\n", IR);
+    fprintf(stderr, "I1: %25.17e\n", I1);
     fprintf(stderr, "R: %25.17e\n", R);
     fprintf(stderr, "P: %25.17e\n", P);
+    fprintf(stderr, "IR: %25.17e\n", IR);
     
     gsl_root_fsolver_free(workspace_F);
 
