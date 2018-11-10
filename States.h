@@ -18,7 +18,7 @@ const std::vector<const StateType> stateref = { S_STATE, I1_STATE, R_STATE, P_ST
 
 const std::vector<const std::string> statestr = {"S", "I1", "R", "P", "IR"};
 
-std::vector<double> equilibrium_fraction(Params p);
+std::vector<double> equilibrium_fraction(Params p, bool multi = false);
 
 void printResults(std::vector<double> res);
 
