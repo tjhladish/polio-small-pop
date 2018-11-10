@@ -14,8 +14,12 @@ enum StateType {
   NUM_OF_STATE_TYPES
 };
 
-const std::vector<std::string> statestr = {"S", "I1", "R", "P", "IR"};
+const std::vector<const StateType> stateref = { S_STATE, I1_STATE, R_STATE, P_STATE, IR_STATE };
 
-std::vector<double> equilibrium(Params p);
+const std::vector<const std::string> statestr = {"S", "I1", "R", "P", "IR"};
+
+std::vector<double> equilibrium_fraction(Params p);
+
+void printResults(std::vector<double> res);
 
 #endif

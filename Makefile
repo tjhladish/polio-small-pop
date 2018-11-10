@@ -26,7 +26,10 @@ JSONINC := -Ijson/include
 Params.o: Params.cpp Params.h json/include/nlohmann/json.hpp
 	$(CPP) -c $< -o $@ $(JSONINC)
 
-libsim.a: Params.o
+States.o: States.cpp States.h
+	$(CPP) -c $< -o $@
+
+libsim.a: Params.o States.o
 	$(ARCHIVE) $@ $^
 
 testODE: main_testEqODESoln.cpp libsim.a

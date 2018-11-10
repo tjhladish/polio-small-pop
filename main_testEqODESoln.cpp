@@ -23,51 +23,6 @@
 
 using namespace std;
 
-// const double KAPPA                 = 0.4179; //waning depth parameter
-// const double RHO                   = 0.2; //waning speed parameter
-
-//other parameters
-// const vector<double> village_pop   = {1000};
-// const int numVillages              = village_pop.size(); //total number of villages under consideration
-// const int numDaysToRecover         = 28;
-// const double RECOVERY              = 365/numDaysToRecover;    //recovery rate (/year)
-// const double BETA                  = 135;   //contact rate (individuals/year)
-// const double lifespan              = 50;
-// const double BIRTH                 = 1/lifespan; //birth rate (per year)
-// const double DEATH                 = 1/lifespan; //death rate (per year)
-
-int func_m(const gsl_vector * x, void * p, gsl_vector * f){
-    Params * params = (Params *)p;
-    const double recovery = (params->recovery);
-    const double beta = (params->beta);
-    const double birth = (params->birth);
-    const double death = (params->death);
-    const double kappa = (params->kappa);
-    const double rho = (params->rho);
-    const double Population = (params->Population[0]);
-    const double S  = gsl_vector_get(x,S_STATE);
-    const double I1 = gsl_vector_get(x,I1_STATE);
-    const double R  = gsl_vector_get(x,R_STATE);
-    const double P  = gsl_vector_get(x,P_STATE);
-    const double Ir = gsl_vector_get(x,IR_STATE);
-
-    const double birthdt = birth*Population;
-    const double foi = ((beta*(I1+kappa*Ir))/Population);
-    const double infection1 = S*foi;
-    const double infection2 = P*foi*kappa;
-    const double recovery1 = recovery*I1;
-    const double recovery2 = (recovery/kappa)*Ir;
-    const double waning = rho*R;
-
-    gsl_vector_set (f, S_STATE,  birthdt - infection1 - death*S);
-    gsl_vector_set (f, I1_STATE, infection1 - recovery1 - death*I1);
-    gsl_vector_set (f, R_STATE,  recovery1 + recovery2 - waning - death*R);
-    gsl_vector_set (f, P_STATE,  waning - infection2 - death*P);
-    gsl_vector_set (f, IR_STATE, infection2 - recovery2 - death*Ir);
-
-    return GSL_SUCCESS;
-}
-
 double func_s(double I1, Params* p) {
   return 1.0 - ((p->recovery + p->death)/(p->death))*I1;
 }
@@ -100,63 +55,9 @@ vector<double> initialize_compartment(int villageId, Params ref) {
     Params params = ref;
     params.Population = {ref.Population[villageId]};
 
-    int i, times, status;
-    gsl_multiroot_function F;
-    gsl_multiroot_fsolver *workspace_F;
-    gsl_vector *x;
-    int num_dimensions = 5;
+    vector<double> compartments = equilibrium_fraction(ref);
 
-    x = gsl_vector_alloc(num_dimensions);
-
-    workspace_F = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids,num_dimensions);
-    printf("F solver: %s\n", gsl_multiroot_fsolver_name(workspace_F));
-    F.f=&func_m;
-    F.n=num_dimensions;
-    F.params = &params;
-    int MAXTIMES = 100;
-    /* set initial value */
-    for(i = 0; i < num_dimensions; i++){
-        gsl_vector_set(x, i, params.Population[0]/num_dimensions);
-    }
-
-    /* set solver */
-    gsl_multiroot_fsolver_set(workspace_F,&F, x);
-
-    /* main loop */
-    for(times = 0; times < MAXTIMES; times++) {
-        status = gsl_multiroot_fsolver_iterate(workspace_F);
-
-        /*fprintf(stderr, "%d times: ", times);
-         for(i = 0; i < num_dimensions; i++) {
-         fprintf(stderr, "%10.3e ", gsl_vector_get(workspace_F->x, i));
-         }
-         fprintf(stderr, "\n");
-         */
-        if((status == GSL_EBADFUNC) || (status == GSL_ENOPROG))
-        {
-            fprintf(stderr, "Status: %s\n", gsl_strerror(status));
-            break;
-        }
-    }
-
-    assert(status == GSL_ENOPROG);
-    /* print answer */
-    for(i = 0; i < num_dimensions; i++) {
-        fprintf(stderr, "%s %25.17e\n", statestr[i].c_str(), gsl_vector_get(workspace_F->x, i));
-    }
-
-    assert(num_dimensions==5);
-    vector<double> compartments = {
-      gsl_vector_get(workspace_F->x,S_STATE),
-      gsl_vector_get(workspace_F->x,I1_STATE),
-      gsl_vector_get(workspace_F->x,R_STATE),
-      gsl_vector_get(workspace_F->x,P_STATE),
-      gsl_vector_get(workspace_F->x,IR_STATE)
-    };
-
-    gsl_multiroot_fsolver_free(workspace_F);
-
-    gsl_vector_free(x);
+    printResults(compartments);
 
     return compartments;
 }
@@ -200,13 +101,10 @@ void findEquilibrium(Params params) {
     double R = func_r(I1, IR, &params);
     double P = func_p(I1, IR, &params);
 
-    /* print answer */
-    fprintf(stderr, "S: %25.17e\n", S);
-    fprintf(stderr, "I1: %25.17e\n", I1);
-    fprintf(stderr, "R: %25.17e\n", R);
-    fprintf(stderr, "P: %25.17e\n", P);
-    fprintf(stderr, "IR: %25.17e\n", IR);
-    
+    vector<double> res = { S, I1, R, P, IR };
+
+    printResults(res);
+
     gsl_root_fsolver_free(workspace_F);
 
 }
