@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <gsl/gsl_rng.h>
 #include "Params.h"
 
 enum StateType {
@@ -20,6 +21,10 @@ const std::vector<const std::string> statestr = {"S", "I1", "R", "P", "IR"};
 
 std::vector<double> equilibrium_fraction(Params p, bool multi = false);
 
-void printResults(std::vector<double> res);
+std::vector<unsigned int> multinomial_compartments(gsl_rng * r, const std::vector<double> expectedComp, const int pop);
+
+void printProportions(std::vector<double> res);
+
+void printDiscretePop(std::vector<unsigned int> res);
 
 #endif

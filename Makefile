@@ -32,8 +32,12 @@ States.o: States.cpp States.h
 libsim.a: Params.o States.o
 	$(ARCHIVE) $@ $^
 
-testODE.o: main_testEqODESoln.cpp libsim.a
+testODE.o: testODE.cpp libsim.a
 	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim
+
+testMultinomial.o: testMultinomial.cpp libsim.a
+	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim
+
 
 multiPatch: main_Gillespie_multivillage.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas

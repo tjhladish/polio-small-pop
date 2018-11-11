@@ -1,22 +1,5 @@
-#include <iostream>
-#include <math.h>
-#include <random>
-#include <tuple>
-#include <array>
 #include <vector>
-#include <chrono>
-#include <fstream>
 #include <string>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
-#include <gsl/gsl_multiroots.h>
-#include <gsl/gsl_roots.h>
-#include <gsl/gsl_math.h>
-#include <assert.h>
-#include <sstream>
-#include <map>
-#include <sys/time.h>
-#include <algorithm>
 
 #include "Params.h"
 #include "States.h"

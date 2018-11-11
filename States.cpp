@@ -1,30 +1,14 @@
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 #include "States.h"
 
-void printResults(std::vector<double> res) {
-  for(int i = 0; i < NUM_OF_STATE_TYPES; i++) {
-    fprintf(stderr, "%2s %25.17e\n",
-      statestr[i].c_str(),
-      res[i]
-    );
-  }
-}
-
-std::vector<double> from_gsl(gsl_vector * gv) {
-  return {
-    gsl_vector_get(gv, S_STATE),
-    gsl_vector_get(gv, I1_STATE),
-    gsl_vector_get(gv, R_STATE),
-    gsl_vector_get(gv, P_STATE),
-    gsl_vector_get(gv, IR_STATE)
-  };
-}
-
 // MULTIROOT CODE
 
+// dXdt = ... system of equations to feed into multiroot_solver
 int multiroot_evolve(const gsl_vector * x, void * p, gsl_vector * f){
     Params * params = (Params *)p;
     const double recovery = (params->recovery),
@@ -58,6 +42,16 @@ int multiroot_evolve(const gsl_vector * x, void * p, gsl_vector * f){
     gsl_vector_set(f, IR_STATE, infection2 - recovery2  - death*Ir);
 
     return GSL_SUCCESS;
+}
+
+std::vector<double> from_gsl(gsl_vector * gv) {
+  return {
+    gsl_vector_get(gv, S_STATE),
+    gsl_vector_get(gv, I1_STATE),
+    gsl_vector_get(gv, R_STATE),
+    gsl_vector_get(gv, P_STATE),
+    gsl_vector_get(gv, IR_STATE)
+  };
 }
 
 std::vector<double> multiroot_solver(
@@ -140,7 +134,6 @@ std::vector<double> uniroot_solver(
 
   int iter = 0;
 
-  /* main loop */
   do {
     gsl_root_fsolver_iterate(solver);
     i1lo = gsl_root_fsolver_x_lower(solver);
@@ -157,8 +150,47 @@ std::vector<double> uniroot_solver(
 
 }
 
-// final definition
+// MULTINOMIAL CODE
+
+// const gsl_rng_type* T;
+// gsl_rng* r;
+// gsl_rng_env_setup();
+// T = gsl_rng_default;
+// r = gsl_rng_alloc(T);
+// //sets seed by time of day
+// struct timeval tv;
+// gettimeofday(&tv,0);
+// unsigned long mySeed = tv.tv_sec + tv.tv_usec;
+// //mySeed = 20;
+// gsl_rng_set(r,mySeed);
+
+// exported definitions
 
 std::vector<double> equilibrium_fraction(Params p, bool multi) {
   return multi ? multiroot_solver(p) : uniroot_solver(p);
+}
+
+void printProportions(std::vector<double> res) {
+  for(int i = 0; i < NUM_OF_STATE_TYPES; i++) {
+    fprintf(stderr, "%2s %25.17e\n",
+      statestr[i].c_str(),
+      res[i]
+    );
+  }
+}
+
+void printDiscretePop(std::vector<unsigned int> res) {
+  for(int i = 0; i < NUM_OF_STATE_TYPES; i++) {
+    fprintf(stderr, "%2s %d\n",
+      statestr[i].c_str(),
+      res[i]
+    );
+  }
+}
+
+std::vector<unsigned int> multinomial_compartments(gsl_rng * r, const std::vector<double> expectedComp, const int pop){
+    int ncompartments = expectedComp.size();
+    std::vector<unsigned int> res(ncompartments);
+    gsl_ran_multinomial(r, ncompartments, pop, &expectedComp[0], &res[0]);
+    return res;
 }
