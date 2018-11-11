@@ -29,7 +29,10 @@ Params.o: Params.cpp Params.h json/include/nlohmann/json.hpp
 States.o: States.cpp States.h
 	$(CPP) -c $< -o $@
 
-libsim.a: Params.o States.o
+Gillespie.o: Gillespie.cpp Gillespie.h
+	$(CPP) -c $< -o $@
+
+libsim.a: Params.o States.o Gillespie.o
 	$(ARCHIVE) $@ $^
 
 testODE.o: testODE.cpp libsim.a
@@ -38,6 +41,8 @@ testODE.o: testODE.cpp libsim.a
 testMultinomial.o: testMultinomial.cpp libsim.a
 	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim
 
+test%.o: test%.cpp libsim.a
+	$(CPP) -L. $< -o $@ -lgsl -lgslcblas -lsim
 
 multiPatch: main_Gillespie_multivillage.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
