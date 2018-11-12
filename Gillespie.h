@@ -9,6 +9,8 @@ struct GEvent {
   int which;
 };
 
+int discrete_ran_weighted(gsl_rng* rng, std::vector<double> weights);
+
 GEvent gillespie_ran_event(gsl_rng* rng, std::vector<double> event_rates);
 
 #endif
