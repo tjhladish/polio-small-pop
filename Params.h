@@ -11,6 +11,7 @@ struct Params {
     double death;     // rate; all classes -> S (via birth)
     double kappa;     // scaling parameter for pre-exposed class
     double rho;       // rate; waning R->P
+    double detection; // proportion of I1 cases detected = probability paralytic * probability detection when paralytic
     std::vector<double> Population;
     // TODO: sort of weird that population appears as part of Parameters
     // or more particularly that it's a vector instead of single value

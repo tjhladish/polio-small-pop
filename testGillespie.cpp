@@ -25,6 +25,14 @@ int main(){
       std::cout << ge.deltaT << ", " << ge.which << '\n';
     }
 
+    vector<int> iweights = {4, 3, 2, 1};
+    int which;
+    for (int i=0; i < 1000; i++) {
+      which = discrete_ran_weighted(rng, &iweights[1], iweights.size()-1)+1;
+      std::cout << which << '\n';
+    }
+
+
     gsl_rng_free(rng);
 
     return 0;

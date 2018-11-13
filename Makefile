@@ -35,14 +35,11 @@ Gillespie.o: Gillespie.cpp Gillespie.h
 libsim.a: Params.o States.o Gillespie.o
 	$(ARCHIVE) $@ $^
 
-testODE.o: testODE.cpp libsim.a
-	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim
-
-testMultinomial.o: testMultinomial.cpp libsim.a
-	g++ -L. -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas -lsim
-
 test%.o: test%.cpp libsim.a
 	$(CPP) -L. $< -o $@ -lgsl -lgslcblas -lsim
+
+polio: main_Gillespie.cpp libsim.a
+	$(CPP) -L. main_Gillespie.cpp -o $@ -lgsl -lgslcblas -lsim
 
 multiPatch: main_Gillespie_multivillage.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas

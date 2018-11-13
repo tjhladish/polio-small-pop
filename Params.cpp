@@ -24,12 +24,13 @@ Params parseParams(std::string jsonfile) {
   nlohmann::json pars;   // will contains the par value after parsing.
   jsonstream >> pars;
   
-  result.recovery = pars["recovery"];
-  result.beta     = pars["beta"];
-  result.birth    = pars["birth"];
-  result.death    = pars["death"];
-  result.kappa    = pars["kappa"];
-  result.rho      = pars["rho"];
+  result.recovery  = pars["recovery"];
+  result.beta      = pars["beta"];
+  result.birth     = pars["birth"];
+  result.death     = pars["death"];
+  result.kappa     = pars["kappa"];
+  result.rho       = pars["rho"];
+  result.detection = pars["detection"];
   std::vector<double> tmp = pars["pop"];
   result.Population = tmp;
     // par["pops"].asFloat();
