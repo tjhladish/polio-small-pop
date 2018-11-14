@@ -14,3 +14,7 @@ GEvent gillespie_ran_event(gsl_rng* rng, std::vector<double> event_rates) {
 
   return { t, which };
 }
+
+bool gillespie_ran_bool(gsl_rng* rng, double ptrue) {
+  return gsl_ran_flat(rng, 0.0, 1) < ptrue;
+}

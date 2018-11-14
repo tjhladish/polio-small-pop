@@ -97,7 +97,7 @@ std::vector<EventType> rate_changes(EventType ev) {
   }
 }
 
-void update(std::vector<double> &states, Params p, EventType ev, std::vector<double> &rates, gsl_rng *rng){
+void update(std::vector<double> &states, Params p, EventType ev, std::vector<double> &rates, gsl_rng *rng) {
    // which rates will need updates
   StateType from = ev != BIRTHDEATH ? 
     from(ev) :

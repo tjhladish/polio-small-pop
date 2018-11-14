@@ -31,5 +31,6 @@ int discrete_ran_weighted(gsl_rng* rng, std::vector<NUMERIC> weights) {
 // TODO also a begin / end interface?
 
 GEvent gillespie_ran_event(gsl_rng* rng, std::vector<double> event_rates);
+bool   gillespie_ran_bool(gsl_rng* rng, double ptrue);
 
 #endif

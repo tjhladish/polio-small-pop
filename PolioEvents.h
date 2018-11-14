@@ -34,7 +34,7 @@ const std::vector<const std::string> eventstr = {
   "MORT"
 };
 
-std::vector<double> set_rates(std::vector<double> states, Params p);
-void update_rates(std::vector<double> states, Params p, std::vector<double> &rates);
+std::vector<double> set_rates(std::vector<int> &states, Params * p);
+void update(std::vector<double> &states, Params p, EventType ev, std::vector<double> &rates, gsl_rng *rng);
 
 #endif

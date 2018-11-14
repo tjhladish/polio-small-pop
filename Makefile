@@ -38,8 +38,8 @@ libsim.a: Params.o States.o Gillespie.o
 test%.o: test%.cpp libsim.a
 	$(CPP) -L. $< -o $@ -lgsl -lgslcblas -lsim
 
-polio: main_Gillespie.cpp libsim.a
-	$(CPP) -L. main_Gillespie.cpp -o $@ -lgsl -lgslcblas -lsim
+polio_cabp: main_Gillespie_cabp.cpp libsim.a
+	$(CPP) -L. $< -o $@ -lgsl -lgslcblas -lsim
 
 multiPatch: main_Gillespie_multivillage.cpp
 	g++ -O2 --std=c++11 -Wall --pedantic $< -o $@ -lgsl -lgslcblas
