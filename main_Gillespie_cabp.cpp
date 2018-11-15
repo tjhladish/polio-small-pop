@@ -96,95 +96,146 @@ gsl_rng* initialize_rng(int seed = 0) {
   return rng;
 }
 
-int main(){
-    vector<stringstream> output_streams(NUM_OF_OUTPUT_TYPES);
+map<OutputType, stringstream> init_output_streams(vector<OutputType> &outputs) {
+  map<OutputType, stringstream> res();
+  for(auto ot: outputs) res.put(ot, stringstream());
+  return res;
+}
 
-    const int numSims=1000;                  // Number of Simulations to run:
-    vector<double> TTE;                     // time to extinction vector -- use to get numerator for Eichner & Dietz stat
-    vector<double> pCaseDetection;          // time of paralytic cases vector (also use for case-free periods)
-    vector<double> totalParalyticCases;     // vector for num paralytic cases
-    vector<double> pCasesPerYear;           // vector for paralytic cases per year
-    vector<double> histogramCases(50,0);    // vector for counting number of cases per year
-    vector<double> first_infections_per_year; //vector for calculating first infections per year
-    vector<double> histogramFirstInf(1000,0); //vector for counting number of first infections per year
-    vector<double> time_at_first_inf;       //time at first infection vector
-    vector<double> circInt;                 //used to create circulation intervals -- elements are actual time points
+enum ObsEventType {
+  DETECTION, EXTINCTION, EVENT_MAX, TIME_MAX
+}
 
-    //int seed = 20;
-    //mt19937 gen(seed);
+struct ObsEvent {
+  ObsEventType ot; double time;
+}
 
-    // random_device rd;                       // generates a random real number for the seed
-    // mt19937 gen(rd());                      // random number generator
+int main(int argc, char* argv[]){
+  string config = argc > 0 ? argv[0] : "main_gillespie.json";
+  Params p = parseParams(config);
 
-    auto rng = initialize_rng();
+  map<OutputType, stringstream> output_streams = init_output_streams({ CIRCULATION_INTERVAL_OUT, PCASE_TIME_OUT });
 
-    const int MAX_EVENTS = 1e8;
-    const int EPS_RES = 365; // resolution of endemic potential statistic, in divisions per year
-    const int EPS_MAX = 20;  // circulation interval considered for EPS calculation, in years
-    vector<int> eps_circ_ivls(EPS_MAX*EPS_RES, 0); // 50 yrs divided into 100 bins each
-    vector<int> eps_intercase_ivls(EPS_MAX*EPS_RES, 0); // 50 yrs divided into 100 bins each
+  // TODO make these argument based
+  const int SAMPLES    = 1000; // Number of Simulations to run:
+  const int MAX_EVENTS = 1e8;
+  const int EPS_RES    = 365;  // resolution of endemic potential statistic, in divisions per year
+  const int EPS_MAX    = 20;   // circulation interval considered for EPS calculation, in years
 
-    //find expected compartment size
-    const vector<double> compartments = equilibrium_fraction(p);
+  // simulation outcomes
+  vector<double> case_detection_times; // used to create circulation intervals -- elements are actual time points
+  // TODO output actual intervals - important once EPS_RES, EPS_MAX are program inputs?
+  
+  // record of observed intervals
+  vector<int> extinction_intervals(EPS_MAX*EPS_RES, 0);
+  vector<int> intercase_intervals(EPS_MAX*EPS_RES, 0);
+  
+  // record of intervals under case-at-t-0 assumption
+  vector<int> initial_intercase_ints(EPS_MAX*EPS_RES, 0);
+  vector<int> initial_extinction_ints(EPS_MAX*EPS_RES, 0);
+  
+  // censored intervals - i.e., unknown if extinction or case next
+  vector<int> max_events_ints(EPS_MAX*EPS_RES, 0);
+  vector<int> max_events_ints_no_icase(EPS_MAX*EPS_RES, 0);
+  int lost_interest_no_icase = 0,
+      lost_interest = 0;
+    
+  //find expected compartment size
+  const vector<double> compartments = equilibrium_fraction(p);
 
-    //The Simulation
-    for(int i=0; i<numSims; ++i){
-        //reset all parameters to original values after each run of the simulation
-        double time     = 0;
-        double timeBet = 0;
-        pCaseDetection.clear();
-        pCasesPerYear.clear();
-        first_infections_per_year.clear();
-        time_at_first_inf.clear();
-        circInt.clear();
-        circInt.push_back(0);
+  //The Simulation
+  for(int i = 0; i < SAMPLES; ++i){
+    //reset all parameters to original values after each run of the simulation
+    double current_time = 0, last_time = 0;
+    case_detection_times.clear();
+    auto rng = initialize_rng(i);
+    
+    // initialize system
+    std::vector<unsigned int> states;
+    bool extinct;
+    do { // require at least some infection to initialize sample
+      states = multinomial_compartments(rng, compartments, p.Population);
+      extinct = (states[I1_STATE]+states[IR_STATE]) == 0;
+    } while (extinct);
+    
+    auto rates = set_rates(states, &p);
+    int nevents = 0;
 
-        auto states = multinomial_compartments(rng, compartments, TOT);
-        auto rates = set_rates(states, &p);
-
-        //run the simulation for 100 mil steps
-        for(int j=0; j<MAX_EVENTS; ++j){
-            GEvent event = gillespie_ran_event(rng, rates);
-            EventType ev = eventref[event.which];
-            time += event.deltaT;
-            //Pick the event that is to occur based on generated number and rate
-            if (ev == FIRST_INFECTION && gillespie_ran_bool(rng, PIR*DET_RATE)) {
-              if(timeBet > 0) pCaseDetection.push_back(time - timeBet);
-              timeBet = time;
-              circInt.push_back(time);
-            }
-            update(&states, p, ev, &rates, rng);
-            //stopping condition
-            if( (states[I1_STATE]+states[IR_STATE]) == 0.0 || time >= EPS_MAX){
-                circInt.push_back(time); // not a good variable name--these aren't circulation intervals, they're case times
-                for(unsigned int i = 0; i < circInt.size(); i++){
-                    const double ci = i > 0 ? circInt[i] - circInt[i-1] : circInt[i];
-                    const int eps_idx = ci < EPS_MAX ? (int) (ci*EPS_RES) : EPS_MAX*EPS_RES - 1;
-                    eps_circ_ivls[eps_idx]++;
-                    output_streams[CIRCULATION_INTERVAL_OUT] << circInt[i];
-                    if(i < circInt.size() - 1){
-                        eps_intercase_ivls[eps_idx]++;
-                        output_streams[CIRCULATION_INTERVAL_OUT]<< SEP;
-                    }
-                }
-                output_streams[CIRCULATION_INTERVAL_OUT] << endl;
-                
-                for(unsigned int i = 0; i < pCaseDetection.size();i++){
-                    output_streams[PCASE_TIME_OUT]<<pCaseDetection[i];
-                    if(i < pCaseDetection.size() - 1){
-                        output_streams[PCASE_TIME_OUT]<<SEP;
-                    }
-                }
-                output_streams[PCASE_TIME_OUT]<<endl;
-                break;
-            }
-        }
-
+    do {
+      GEvent event = gillespie_ran_event(rng, rates);
+      EventType ev = eventref[event.which];
+      // this potentially has large + small machine precision error issues; kahan sum correction?
+      // especial true larger time gets / smaller delta gets (i.e., larger populations)
+      current_time += event.deltaT;
+      
+      // observation process
+      if (ev == FIRST_INFECTION && gillespie_ran_bool(rng, PIR*DET_RATE)) {
+        case_detection_times.push_back(current_time);
+        last_time = current_time;
+      }
+      update(&states, p, ev, &rates, rng);
+      extinct = (states[I1_STATE]+states[IR_STATE]) == 0;    
+    } while (
+      !extinct && // still possible to generate new cases
+      nevents++ < MAX_EVENTS && // haven't exceeded event budget
+      (current_time - last_time) < EPS_MAX // haven't gone too long without recordable event
+    );
+    
+    if (case_detection_times.size() > 0) { // saw at least one case
+      // calculate intercase intervals
+      // calculate initial interval
+      
+    } else { // saw no cases
+      
     }
-    assert(eps_intercase_ivls.size() == eps_circ_ivls.size());
-    for (unsigned int i = 0; i < eps_circ_ivls.size(); ++i) {
-        cerr << eps_intercase_ivls[i] << SEP << eps_circ_ivls[i] << endl;
-    }
-    output_results(output_streams);
-    return 0;
+    
+    // possible outcomes:
+    // saw a case or not
+    // if extinct:
+    //  saw at least one case vs not
+    // else (not extinct)
+    //  ran out of events vs
+    //  lost interest
+    
+    // intercase intervals == diffs of case detection times
+    // extinction intervals == for sims ending in extinction, current_time - case_detection_times.back()
+    // circulation intervals == sum of those two.
+    // circulation can be done easily in post processing
+
+      //run the simulation for 100 mil steps
+      for(int j=0; j<MAX_EVENTS; ++j){
+
+          //stopping condition
+          if( (states[I1_STATE]+states[IR_STATE]) == 0.0 || time >= EPS_MAX){
+              circInt.push_back(time); // not a good variable name--these aren't circulation intervals, they're case times
+              for(unsigned int i = 0; i < circInt.size(); i++){
+                  const double ci = i > 0 ? circInt[i] - circInt[i-1] : circInt[i];
+                  const int eps_idx = ci < EPS_MAX ? (int) (ci*EPS_RES) : EPS_MAX*EPS_RES - 1;
+                  eps_circ_ivls[eps_idx]++;
+                  output_streams[CIRCULATION_INTERVAL_OUT] << circInt[i];
+                  if(i < circInt.size() - 1){
+                      eps_intercase_ivls[eps_idx]++;
+                      output_streams[CIRCULATION_INTERVAL_OUT] << SEP;
+                  }
+              }
+              output_streams[CIRCULATION_INTERVAL_OUT] << endl;
+              
+              for(unsigned int i = 0; i < pCaseDetection.size(); i++){
+                  output_streams[PCASE_TIME_OUT] << pCaseDetection[i];
+                  if(i < pCaseDetection.size() - 1){
+                      output_streams[PCASE_TIME_OUT] << SEP;
+                  }
+              }
+              output_streams[PCASE_TIME_OUT] << endl;
+              break;
+          }
+      }
+
+  }
+  assert(eps_intercase_ivls.size() == eps_circ_ivls.size());
+  for (unsigned int i = 0; i < eps_circ_ivls.size(); ++i) {
+      cerr << eps_intercase_ivls[i] << SEP << eps_circ_ivls[i] << endl;
+  }
+  output_results(output_streams);
+  return 0;
 }
