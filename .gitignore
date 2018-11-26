@@ -1,0 +1,4 @@
+*.o
+*.a
+local.mk
+.Rproj.user
