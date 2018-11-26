@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     
     vector<vector<double>> noPcase_ED_stat;
     vector<vector<double>> onePcase_ED_stat;
-    string output_filename = "absolute_risk_matrix_N_5x6000_mig_0_fast_v_slow.csv";
+    string output_filename = "absolute_risk_matrix_N_20000_testing_new_alg.csv";
     
     string line;
     double noPcaseValue;
@@ -50,44 +50,66 @@ int main(int argc, char** argv) {
     noPcase_file.close();
     onePcase_file.close();
     
-    vector<vector<double>> absRiskMat(onePcase_ED_stat.size(),vector<double> (2));
-    //vector<vector<double>> absRiskMat(noPcase_ED_stat.size(),vector<double> (2));
-    
     ofstream fo(output_filename);
     
+    vector<double> onePcase_time_vec(onePcase_ED_stat.size());
+    vector<double> noPcase_time_vec(noPcase_ED_stat.size());
+    
+    for(int i = 0; i < onePcase_ED_stat.size(); i++){
+        onePcase_time_vec[i] = onePcase_ED_stat[i][0];
+    }
     for(int i = 0; i < noPcase_ED_stat.size(); i++){
-        for(int j = 0; j < onePcase_ED_stat.size(); j++){
-            if(i > 1){
-                if(onePcase_ED_stat[j][0] <= noPcase_ED_stat[i][0] and onePcase_ED_stat[j][0]> noPcase_ED_stat[(i-1)][0]){
-                    absRiskMat[j][0] = onePcase_ED_stat[j][0];
-                    absRiskMat[j][1] = onePcase_ED_stat[j][1] - noPcase_ED_stat[i][1];
-                }
-            }
-            else{
-                if(onePcase_ED_stat[j][0] <= noPcase_ED_stat[i][0]){
-                    absRiskMat[j][0] = onePcase_ED_stat[j][0];
-                    absRiskMat[j][1] = onePcase_ED_stat[j][1] - noPcase_ED_stat[i][1];
-                }
-            }
-        }
+        noPcase_time_vec[i] = noPcase_ED_stat[i][0];
     }
     
-    /*for(int i = 0; i < onePcase_ED_stat.size(); i++){
-        for(int j = 0; j < noPcase_ED_stat.size(); j++){
-            if(i > 1){
-                if(noPcase_ED_stat[j][0] <= onePcase_ED_stat[i][0] and noPcase_ED_stat[j][0]> onePcase_ED_stat[(i-1)][0]){
-                    absRiskMat[j][0] = noPcase_ED_stat[j][0];
-                    absRiskMat[j][1] = onePcase_ED_stat[i][1] - noPcase_ED_stat[j][1];
-                }
+    vector<double> newTimeVec = onePcase_time_vec;
+    newTimeVec.insert(newTimeVec.end(), noPcase_time_vec.begin(), noPcase_time_vec.end());
+    sort(newTimeVec.begin(),newTimeVec.end());
+    
+    vector<vector<double>> absRiskMat(newTimeVec.size(),vector<double> (2));
+    
+    double onePcase_chosen;
+    double noPcase_chosen;
+    int onePcase_counter = 0;
+    int noPcase_counter = 0;
+    for(int time = 0; time < newTimeVec.size(); time++){
+        onePcase_chosen = 0;
+        noPcase_chosen = 0;
+        if(onePcase_ED_stat[onePcase_counter][0] > newTimeVec[time]){
+            if(time > 0){
+                onePcase_chosen = onePcase_ED_stat[(onePcase_counter - 1)][1];
             }
             else{
-                if(noPcase_ED_stat[j][0] <= onePcase_ED_stat[i][0]){
-                    absRiskMat[j][0] = noPcase_ED_stat[j][0];
-                    absRiskMat[j][1] = onePcase_ED_stat[i][1] - noPcase_ED_stat[j][1];
-                }
+                cout<<"time = 0 one pcase\n";
+                onePcase_chosen = onePcase_ED_stat[onePcase_counter][1];
             }
         }
-    }*/
+        else{
+            onePcase_chosen = onePcase_ED_stat[onePcase_counter][1];
+            if(onePcase_counter < (onePcase_ED_stat.size()-1)){
+                onePcase_counter++;
+            }
+        }
+        if(noPcase_ED_stat[noPcase_counter][0] > newTimeVec[time]){
+            if(time > 0){
+                noPcase_chosen = noPcase_ED_stat[(noPcase_counter - 1)][1];
+            }
+            else{
+                cout<<"time = 0 no pcase\n";
+                noPcase_chosen = noPcase_ED_stat[noPcase_counter][1];
+            }
+        }
+        else{
+            noPcase_chosen = noPcase_ED_stat[noPcase_counter][1];
+            if(noPcase_counter < (noPcase_ED_stat.size()-1)){
+                noPcase_counter++;
+            }
+        }
+        assert(onePcase_chosen!=0);
+        assert(noPcase_chosen!=0);
+        absRiskMat[time][0] = newTimeVec[time];
+        absRiskMat[time][1] = onePcase_chosen - noPcase_chosen;
+    }
     
     for(int row = 0; row < absRiskMat.size(); row++){
         for(int col = 0; col < absRiskMat[row].size(); col++){
