@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     
     vector<vector<double>> noPcase_ED_stat;
     vector<vector<double>> onePcase_ED_stat;
-    string output_filename = "absolute_risk_matrix_N_20000_testing_new_alg.csv";
+    string output_filename = "absolute_risk_matrix_N_5000.csv";
     
     string line;
     double noPcaseValue;
@@ -76,11 +76,10 @@ int main(int argc, char** argv) {
         onePcase_chosen = 0;
         noPcase_chosen = 0;
         if(onePcase_ED_stat[onePcase_counter][0] > newTimeVec[time]){
-            if(time > 0){
+            if(onePcase_counter > 0){
                 onePcase_chosen = onePcase_ED_stat[(onePcase_counter - 1)][1];
             }
             else{
-                cout<<"time = 0 one pcase\n";
                 onePcase_chosen = onePcase_ED_stat[onePcase_counter][1];
             }
         }
@@ -91,11 +90,10 @@ int main(int argc, char** argv) {
             }
         }
         if(noPcase_ED_stat[noPcase_counter][0] > newTimeVec[time]){
-            if(time > 0){
+            if(noPcase_counter > 0){
                 noPcase_chosen = noPcase_ED_stat[(noPcase_counter - 1)][1];
             }
             else{
-                cout<<"time = 0 no pcase\n";
                 noPcase_chosen = noPcase_ED_stat[noPcase_counter][1];
             }
         }
