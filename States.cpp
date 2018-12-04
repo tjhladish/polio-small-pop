@@ -9,8 +9,8 @@
 // MULTIROOT CODE
 
 // dXdt = ... system of equations to feed into multiroot_solver
-int multiroot_evolve(const gsl_vector * x, void * p, gsl_vector * f){
-    Params * params = (Params *)p;
+int multiroot_evolve(const gsl_vector* x, void* p, gsl_vector * f){
+    auto params = static_cast<Params*>(p);
     const double recovery = (params->recovery),
                  beta     = (params->beta),
                  birth    = (params->birth),
@@ -55,10 +55,10 @@ std::vector<double> from_gsl(gsl_vector * gv) {
 }
 
 std::vector<double> multiroot_solver(
-  Params p, int MAX_ITER = 100, bool verbose = false
+  Params * p, int MAX_ITER = 100, bool verbose = false
 ) {
 
-  gsl_multiroot_function F = { &multiroot_evolve, NUM_OF_STATE_TYPES, &p };
+  gsl_multiroot_function F = { &multiroot_evolve, NUM_OF_STATE_TYPES, p };
   gsl_multiroot_fsolver * solver = gsl_multiroot_fsolver_alloc(gsl_multiroot_fsolver_hybrids, NUM_OF_STATE_TYPES);
   gsl_vector * x = gsl_vector_alloc(NUM_OF_STATE_TYPES); // allocate a zeroes vector
   gsl_vector_set_all(x, 1.0/((double)NUM_OF_STATE_TYPES)); // distribute evenly
@@ -100,7 +100,7 @@ double func_p(double I1, double IR, Params* p) {
 }
 
 double uniroot_evolve(double I1, void * p){
-    Params * ps = (Params *)p;
+    auto ps = static_cast<Params*>(p);
 
     double S  = func_s(I1, ps);
     double IR = func_ir(I1, S, ps);
@@ -119,16 +119,16 @@ std::vector<double> from_I1(double I1, Params * p) {
 }
 
 std::vector<double> uniroot_solver(
-  Params params, int MAX_ITER = 100, bool verbose = false
+  Params * params, int MAX_ITER = 100, bool verbose = false
 ) {
 
-  gsl_function F = { &uniroot_evolve, &params };
+  gsl_function F = { &uniroot_evolve, params };
 
   auto solver = gsl_root_fsolver_alloc(gsl_root_fsolver_brent);
   if (verbose) printf("F solver: %s\n", gsl_root_fsolver_name(solver));
 
-  double i1lo = params.death*(1.0/(params.death+params.recovery) - 1.0/params.beta),
-         i1hi = (params.death / (params.recovery + params.death)) - 1e-8;
+  double i1lo = params->death*(1.0/(params->death+params->recovery) - 1.0/params->beta),
+         i1hi = (params->death / (params->recovery + params->death)) - 1e-8;
 
   gsl_root_fsolver_set(solver, &F, i1lo, i1hi);
 
@@ -142,7 +142,7 @@ std::vector<double> uniroot_solver(
     (gsl_root_test_interval(i1lo, i1hi, 0, 0.001) == GSL_CONTINUE) && (++iter < MAX_ITER)
   );
 
-  auto res = from_I1(gsl_root_fsolver_root(solver), &params);
+  auto res = from_I1(gsl_root_fsolver_root(solver), params);
 
   gsl_root_fsolver_free(solver);
 
@@ -150,23 +150,7 @@ std::vector<double> uniroot_solver(
 
 }
 
-// MULTINOMIAL CODE
-
-// const gsl_rng_type* T;
-// gsl_rng* r;
-// gsl_rng_env_setup();
-// T = gsl_rng_default;
-// r = gsl_rng_alloc(T);
-// //sets seed by time of day
-// struct timeval tv;
-// gettimeofday(&tv,0);
-// unsigned long mySeed = tv.tv_sec + tv.tv_usec;
-// //mySeed = 20;
-// gsl_rng_set(r,mySeed);
-
-// exported definitions
-
-std::vector<double> equilibrium_fraction(Params p, bool multi) {
+std::vector<double> equilibrium_fraction(Params* p, bool multi) {
   return multi ? multiroot_solver(p) : uniroot_solver(p);
 }
 
@@ -188,8 +172,12 @@ void printDiscretePop(std::vector<unsigned int> res) {
   }
 }
 
-std::vector<unsigned int> multinomial_compartments(gsl_rng * r, const std::vector<double> expectedComp, const int pop){
-    int ncompartments = expectedComp.size();
+std::vector<unsigned int> multinomial_compartments(
+  gsl_rng * r,
+  const std::vector<double> expectedComp,
+  const int pop
+){
+    auto ncompartments = expectedComp.size();
     std::vector<unsigned int> res(ncompartments);
     gsl_ran_multinomial(r, ncompartments, pop, &expectedComp[0], &res[0]);
     return res;

@@ -19,7 +19,7 @@ const std::vector<const StateType> stateref = { S_STATE, I1_STATE, R_STATE, P_ST
 
 const std::vector<const std::string> statestr = {"S", "I1", "R", "P", "IR"};
 
-std::vector<double> equilibrium_fraction(Params p, bool multi = false);
+std::vector<double> equilibrium_fraction(Params* p, bool multi = false);
 
 std::vector<unsigned int> multinomial_compartments(gsl_rng * r, const std::vector<double> expectedComp, const int pop);
 

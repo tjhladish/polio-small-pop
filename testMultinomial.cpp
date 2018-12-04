@@ -23,7 +23,7 @@ int main(){
     //int numVillages = refparams.Population.size();
     auto rng = initialize_rng();
 
-    auto proportions = equilibrium_fraction(refparams);
+    auto proportions = equilibrium_fraction(&refparams);
     vector<vector<unsigned int>> compartments(refparams.Population.size());
     for (int i=0; i < compartments.size(); i++) {
       compartments[i] = multinomial_compartments(rng, proportions, refparams.Population[i]);
