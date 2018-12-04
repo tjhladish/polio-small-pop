@@ -1,9 +1,8 @@
 #include "Gillespie.h"
 
 template int discrete_ran_weighted(gsl_rng* rng, std::vector<int> weights);
+template int discrete_ran_weighted(gsl_rng* rng, std::vector<unsigned int> weights);
 template int discrete_ran_weighted(gsl_rng* rng, std::vector<double> weights);
-template int discrete_ran_weighted(gsl_rng* rng, double* weights, size_t size);
-template int discrete_ran_weighted(gsl_rng* rng, int* weights, size_t size);
 
 GEvent gillespie_ran_event(gsl_rng* rng, std::vector<double> event_rates) {
   double overall_rate = std::accumulate(event_rates.begin(), event_rates.end(), 0);
