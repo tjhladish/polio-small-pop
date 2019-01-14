@@ -1,5 +1,5 @@
-#ifndef STATETYPE_H
-#define STATETYPE_H
+#ifndef POLIOEVENTS_H
+#define POLIOEVENTS_H
 
 #include <vector>
 #include <string>
@@ -16,7 +16,7 @@ enum EventType {
   NUM_OF_EVENT_TYPES
 };
 
-const std::vector<const EventType> eventref = {
+const std::vector<EventType> eventref = {
   FIRST_INFECTION,
   REINFECTION,
   RECOVER_FIRST_INFECTION,
@@ -34,7 +34,12 @@ const std::vector<const std::string> eventstr = {
   "MORT"
 };
 
-std::vector<double> set_rates(std::vector<int> &states, Params * p);
-void update(std::vector<double> &states, Params p, EventType ev, std::vector<double> &rates, gsl_rng *rng);
+std::vector<double> set_rates(std::vector<unsigned int> &states, Params * p);
+
+void update(
+  std::vector<unsigned int> &states, Params * p,
+  EventType ev,
+  std::vector<double> &rates, gsl_rng *rng
+);
 
 #endif

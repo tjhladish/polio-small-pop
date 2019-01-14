@@ -2,6 +2,8 @@
 #include <string>
 #include "Params.h"
 #include "States.h"
+#include "Gillespie.h"
+#include "PolioEvents.h"
 
 // enum EventType {
 //   FIRST_INFECTION,
@@ -13,7 +15,7 @@
 //   NUM_OF_EVENT_TYPES
 // };
 
-inline StateType from(EventType ev) {
+StateType from_state(EventType ev) {
   assert(ev != NUM_OF_EVENT_TYPES);
   assert(ev != BIRTHDEATH);
   switch (ev) {
@@ -24,7 +26,7 @@ inline StateType from(EventType ev) {
     case WANING:                  return R_STATE;
     default:                      exit(0);
   }
-}
+};
 
 inline StateType to(EventType ev) {
   assert(ev != NUM_OF_EVENT_TYPES);
@@ -35,33 +37,36 @@ inline StateType to(EventType ev) {
     case RECOVER_REINFECTION:     return R_STATE;
     case WANING:                  return P_STATE;
     case BIRTHDEATH:              return S_STATE;
-    default: exit(0);
+    default:                      exit(0);
   }
-}
+};
 
-inline double rate(EventType ev, std::vector<double> &states, Params * p, double foi) {
+inline double rate(EventType ev, std::vector<unsigned int> &states, Params * p, double foi) {
   switch (ev) {
     case FIRST_INFECTION:         return foi*states[S_STATE];
     case REINFECTION:             return foi*p->kappa*states[P_STATE];
     case RECOVER_FIRST_INFECTION: return p->recovery*states[I1_STATE];
     case RECOVER_REINFECTION:     return (p->recovery/p->kappa)*states[IR_STATE];
     case WANING:                  return p->rho*states[R_STATE];
-    case BIRTHDEATH:              return p->death*(TOT - states[S_STATE]);
+    case BIRTHDEATH:              return p->death*(p->Population[0] - states[S_STATE]);
+    default:                      exit(0);
   }
-}
+};
 
-void update_rates(std::vector<int> &states, Params * p, std::vector<double> &rates, std::vector<EventType> &events) {  
-  double foi = p->beta/TOT*(states[I1_STATE] + p->kappa*states[IR_STATE]);
+void update_rates(
+  std::vector<unsigned int> &states, Params * p, std::vector<double> &rates,
+  const std::vector<EventType> &events) {  
+  double foi = p->beta/p->Population[0]*(states[I1_STATE] + p->kappa*states[IR_STATE]);
   for (auto ev : events) rates[ev] = rate(ev, states, p, foi);
 };
 
-std::vector<double> set_rates(std::vector<int> &states, Params * p) {  
-  vector<double> res(NUM_OF_EVENT_TYPES, 0.0);
+std::vector<double> set_rates(std::vector<unsigned int> &states, Params * p) {  
+  std::vector<double> res(NUM_OF_EVENT_TYPES, 0.0);
   update_rates(states, p, res, eventref);
   return res;
 };
 
-inline void fromto(StateType from, StateType to, std::vector<double> &states) {
+inline void fromto(StateType from, StateType to, std::vector<unsigned int> &states) {
   states[from]--;  states[to]++;
 }
 
@@ -72,13 +77,11 @@ std::vector<EventType> birthdeath_rate_changes(StateType from) {
       return { BIRTHDEATH, FIRST_INFECTION, REINFECTION, RECOVER_FIRST_INFECTION };
     case IR_STATE:
       return { BIRTHDEATH, FIRST_INFECTION, REINFECTION, RECOVER_REINFECTION };
-    break;
     case R_STATE:
       return { BIRTHDEATH, FIRST_INFECTION, WANING };
-    break;
     case P_STATE:
       return { BIRTHDEATH, FIRST_INFECTION, REINFECTION };
-    break;
+    default: exit(0);
   }
 }
 
@@ -94,18 +97,24 @@ std::vector<EventType> rate_changes(EventType ev) {
       return { FIRST_INFECTION, REINFECTION, RECOVER_REINFECTION, WANING };
     case WANING:
       return { REINFECTION, WANING };
+    default: exit(0);
   }
 }
 
-void update(std::vector<double> &states, Params p, EventType ev, std::vector<double> &rates, gsl_rng *rng) {
+void update(
+  std::vector<unsigned int> &states,
+  Params * p, EventType ev,
+  std::vector<double> &rates,
+  gsl_rng *rng
+) {
    // which rates will need updates
-  StateType from = ev != BIRTHDEATH ? 
-    from(ev) :
+  StateType from = (ev != BIRTHDEATH) ? 
+    from_state(ev) :
     stateref[1+discrete_ran_weighted(rng, &states[1], NUM_OF_STATE_TYPES-1)];
   std::vector<EventType> updates = ev != BIRTHDEATH ?
     rate_changes(ev) :
     birthdeath_rate_changes(from);
       
-  fromto(from(ev), to(ev), states);
+  fromto(from, to(ev), states);
   update_rates(states, p, rates, updates);
 }

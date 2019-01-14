@@ -19,20 +19,32 @@ json/include/nlohmann/json.hpp:
 -include local.mk
 
 ARCHIVE ?= $(AR) -rv
-CPP = g++ -O2 --std=c++11 -Wall --pedantic
+CPP := g++ -O2 --std=c++11 -Wall --pedantic
 
 JSONINC := -Ijson/include
 
+# library object for parsing model parameters
 Params.o: Params.cpp Params.h json/include/nlohmann/json.hpp
 	$(CPP) -c $< -o $@ $(JSONINC)
 
+# defines the polio model compartments,
+# provides definitions for transitions,
+# provides assorted analytical definitions (e.g., equilibrium fractions)
 States.o: States.cpp States.h
 	$(CPP) -c $< -o $@
 
+# implements basic Gillespie algorithm:
+# given event rates, select which event occurs when 
 Gillespie.o: Gillespie.cpp Gillespie.h
 	$(CPP) -c $< -o $@
 
-libsim.a: Params.o States.o Gillespie.o
+Utils.o: Utils.cpp Utils.h
+	$(CPP) -c $< -o $@
+
+PolioEvents.o: PolioEvents.cpp PolioEvents.h
+	$(CPP) -c $< -o $@
+
+libsim.a: Params.o States.o Gillespie.o Utils.o PolioEvents.o
 	$(ARCHIVE) $@ $^
 
 test%.o: test%.cpp libsim.a
